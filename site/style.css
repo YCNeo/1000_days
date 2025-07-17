@@ -136,3 +136,52 @@ footer {
   opacity: 1;
   transform: none;
 }
+
+/* === Lightbox === */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: none; /* JS: set to flex when open */
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.lightbox-overlay.open {
+  display: flex;
+}
+
+.lightbox-overlay img {
+  max-width: 90vw;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lightbox-caption {
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  padding: 0 1rem;
+}
