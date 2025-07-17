@@ -1,11 +1,11 @@
 // Auto-assign alternating left/right if not specified; then fade-in reveal.
-// ALSO: click any .image img to open lightbox.
+// ALSO: click any .image to open lightbox (mobile fixed).
 document.addEventListener('DOMContentLoaded', () => {
   // --- 交錯＆淡入 ---
   const blocks = Array.from(document.querySelectorAll('main .block'));
   blocks.forEach((el, i) => {
     if (!el.classList.contains('text-left') && !el.classList.contains('text-right')) {
-      el.classList.add(i % 2 === 0 ? 'text-left' : 'text-right');
+      el.classList.add(i % 2 === 0 ? 'text-left' : 'text-right'); // 桌機用
     }
     el.classList.add('reveal');
   });
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = '';
   }
 
-  // --- 修正：正確的事件委派 ---
+  // --- 修正手機：抓最近的 .image 容器 ---
   document.body.addEventListener('click', (e) => {
     const wrapper = e.target.closest('.image');
     if (!wrapper) return;
@@ -65,13 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   closeBtn.addEventListener('click', closeLightbox);
 
-  // 點黑底關閉（避免點到圖就關掉）
+  // 點黑底關閉
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
       closeLightbox();
     }
   });
 
+  // ESC
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && overlay.classList.contains('open')) {
       closeLightbox();

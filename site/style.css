@@ -112,11 +112,13 @@ footer {
     flex-direction: column;
     padding: 3rem 1rem;
   }
-  .text,
-  .image {
-    flex: 1 1 100%;
-    order: initial;
-    text-align: center;
+  /* 統一：手機一律文字在上、圖片在下 */
+  .block .text {
+    order: 1 !important;
+    text-align: center; /* 可選，手機排版更好看 */
+  }
+  .block .image {
+    order: 2 !important;
   }
   .text h2 {
     font-size: 1.75rem;
