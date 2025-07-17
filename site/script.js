@@ -167,15 +167,17 @@ function hideAuthGate() {
 function onAuthRoleChange() {
   const val = authSelectEl.value;
   if (val === 'guest') {
+    hideAuthGate();     // ★ 新增：關閉遮罩
     chooseGuest();
+    return;
   } else if (val === 'rr') {
-    // Load question from payload metadata if available; else fallback label text.
     loadQuestionMeta().then(q => {
       if (q) authQuestionEl.textContent = q;
     });
     showAuthRRField();
   }
 }
+
 
 async function onAuthRRSubmit() {
   const ans = authRRInput.value.trim();
@@ -296,6 +298,7 @@ async function rrResumeFromStored() {
 
 /* Guest (demo) mode */
 async function chooseGuest() {
+  hideAuthGate();  // 保險
   CURRENT_MODE = 'guest';
   setAuthMode('guest');
   setAuthExp(Date.now() + DEFAULT_AUTH_TTL_MS); // arbitrary; just to suppress gate re-open within session

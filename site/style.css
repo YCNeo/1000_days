@@ -545,3 +545,33 @@ body.quiz-open .theme-toggle {
 body.auth-open {
   overflow: hidden;
 }
+
+/* CARD FAB */
+.card-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 3800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  box-shadow: 0 4px 16px var(--shadow);
+  transition: transform 0.1s ease, opacity 0.2s ease;
+}
+.card-fab:active {
+  transform: scale(0.9);
+}
+@media (min-width: 768px) {
+  .card-fab {
+    bottom: 2rem;
+    right: 2rem;
+  }
+}
