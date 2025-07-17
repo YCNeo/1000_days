@@ -18,6 +18,12 @@ const PATH_PRIVATE_ENC = 'private.enc.json'; // produced in prod build
 // fallback TTL if payload missing
 const DEFAULT_AUTH_TTL_MS = 15 * 60 * 1000;
 
+// hero/desc text
+const HERO_DESC_GUEST = '歡迎瀏覽示範內容，歡迎挑戰答題鎖！';
+const HERO_DESC_RR = '哈囉 RR ❤️ 這裡記錄了我們的 1000 日回憶。';
+const FOOTER_DESC_GUEST = '© 2025. Demo 版僅示範技術功能。';
+const FOOTER_DESC_RR = '© 2025. 專屬於我們的千日紀念。';
+
 /* quiz lock fallback; overwritten by content meta */
 let LOCK_DURATION_MS = 15 * 60 * 1000;
 
@@ -312,6 +318,10 @@ async function chooseGuest() {
   initBlocks();
   initLightbox();
   initQuizLock(); // sample quiz OK
+
+  // 文字切換
+  $('#hero-desc').textContent = HERO_DESC_GUEST;
+  document.querySelector('footer p').textContent = FOOTER_DESC_GUEST;
 }
 
 /* After successful RR auth */
@@ -327,6 +337,8 @@ async function chooseRR() {
   }
   CURRENT_MODE = 'rr';
   const { content, card_html, images } = RR_PAYLOAD;
+  $('#hero-desc').textContent = HERO_DESC_RR;
+  document.querySelector('footer p').textContent = FOOTER_DESC_RR;
 
   // update global lock duration from payload meta
   const min = parseInt(content?.meta?.lock_duration_minutes, 10);
@@ -721,12 +733,31 @@ function initThemeToggle() {
   }
 }
 
+function initScrollToggle() {
+  const btn = document.getElementById('scroll-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
+    if (atBottom) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  });
+  window.addEventListener('scroll', () => {
+    const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
+    document.body.classList.toggle('scroll-bottom', atBottom);
+  }, { passive: true });
+}
+
+
 /* =========================================================
    ENTRY FLOW
    ========================================================= */
 async function entryInit() {
   initThemeToggle();
   initAuthGateUI();
+  initScrollToggle();
 
   // If card page & RR TTL valid -> skip gate & resume
   if (rrAuthValid() && await rrResumeFromStored()) {

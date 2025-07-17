@@ -575,3 +575,31 @@ body.auth-open {
     right: 2rem;
   }
 }
+
+/* =========================================================
+   Scroll Toggle (bottom / top)
+   ========================================================= */
+.scroll-toggle {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 3700;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  border: none;
+  font-size: 1.5rem;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 16px var(--shadow);
+  transition: transform 0.1s ease;
+}
+.scroll-toggle:active {
+  transform: translateX(-50%) scale(0.9);
+}
+body.scroll-bottom .scroll-toggle {
+  /* 到底部時改成 ↑ */
+  transform: translateX(-50%) rotate(180deg);
+}

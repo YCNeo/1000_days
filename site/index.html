@@ -14,8 +14,7 @@
   <body data-page="index">
     <header class="hero">
       <h1>我們的故事</h1>
-      <p>此站點支援訪客 Demo 與 RR 專屬模式。</p>
-      <a href="#sections-root" class="cta">往下看</a>
+      <p id="hero-desc">載入中...</p>
       <a href="card.html" class="cta card-link">卡片</a>
     </header>
 
@@ -24,7 +23,9 @@
     </main>
 
     <footer>
-      <p>© 2025. 手作愛情站示範版。</p>
+      +
+      <p id="footer-desc">© 2025. 手作愛情站示範版。</p>
+      +
     </footer>
 
     <!-- Auth Gate Overlay -->
@@ -70,6 +71,13 @@
     <a href="card.html" id="card-fab" class="card-fab" aria-label="前往卡片頁"
       >❤️</a
     >
+
+    <button id="scroll-toggle" class="scroll-toggle" aria-label="捲動到底部">
+      ⌄
+    </button>
+    <!-- <button id="scroll-toggle" class="scroll-toggle" aria-label="跳到底部">
+      ⬇️
+    </button> -->
 
     <script src="./script.js" defer></script>
   </body>
