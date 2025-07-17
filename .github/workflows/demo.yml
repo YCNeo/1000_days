@@ -14,20 +14,37 @@ jobs:
   demo:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout public repo
+      - name: Checkout (public repo)
         uses: actions/checkout@v4
 
-      - name: Privacy guard
+      - name: Privacy guard (no private tracked files)
         run: bash scripts/check-no-private.sh
 
-      - name: Prepare demo content
+      - name: Extra sample-mode check
+        shell: bash
         run: |
+          set -euo pipefail
+          echo "[demo-check] verifying sample mode..."
+          if [ -f site/content.json ]; then
+            echo "::error::site/content.json is present in repo; should be generated from sample for demo builds."
+            exit 1
+          fi
+          test -f site/content.sample.json || { echo "::error::missing site/content.sample.json"; exit 1; }
+          test -f site/card.sample.html   || { echo "::error::missing site/card.sample.html"; exit 1; }
+          # ensure no non-sample images tracked
+          if git ls-files 'site/assets/img' | grep -v 'sample-' | grep -v '\.gitkeep' >/dev/null 2>&1; then
+            echo "::error::non-sample image(s) tracked in public repo (privacy risk)."
+            git ls-files 'site/assets/img' | grep -v 'sample-' | grep -v '\.gitkeep' || true
+            exit 1
+          fi
+          echo "[demo-check] OK."
+
+      - name: Prepare demo content
+        shell: bash
+        run: |
+          set -euo pipefail
           cp site/content.sample.json site/content.json
           cp site/card.sample.html site/card.html
-          mkdir -p site/assets/img
-          # ensure at least one sample image exists; you provide your own
-          # touch site/assets/img/sample-1.jpg
-          # touch site/assets/img/sample-2.jpg
           ls -R site
 
       - name: Upload Pages artifact
@@ -36,8 +53,8 @@ jobs:
           path: site
 
   deploy:
+    if: github.event_name == 'push' # only deploy on push, not PR
     needs: demo
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' # only deploy on push, not PR
     steps:
       - uses: actions/deploy-pages@v4

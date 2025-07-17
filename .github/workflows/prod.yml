@@ -22,10 +22,13 @@ jobs:
       name: production
       url: https://1000days.neoycn.xyz
     steps:
-      - name: Checkout public repo
+      - name: Checkout (public repo)
         uses: actions/checkout@v4
 
-      - name: Checkout private content repo
+      - name: Privacy guard (public repo clean)
+        run: bash scripts/check-no-private.sh
+
+      - name: Checkout (private content repo)
         uses: actions/checkout@v4
         with:
           repository: YCNeo/1000-days-private-content
@@ -33,15 +36,28 @@ jobs:
           path: private-content
 
       - name: Inject private content
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
           cp private-content/content.json site/content.json
-          cp private-content/card.html site/card.html
+          cp private-content/card.html    site/card.html
           mkdir -p site/assets/img
           rsync -av --delete private-content/assets/img/ site/assets/img/
-          # create CNAME for custom domain
           echo "1000days.neoycn.xyz" > site/CNAME
           ls -R site
+
+      - name: Post-injection sanity check
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "[prod-check] verifying injected content..."
+          test -f site/content.json || { echo "::error::content.json missing after injection"; exit 1; }
+          test -f site/card.html    || { echo "::error::card.html missing after injection"; exit 1; }
+          # detect if still using sample images (all filenames start with sample-)
+          if ls site/assets/img | grep -q '^sample-'; then
+            echo "::warning::Sample images still present in production build. Did private assets sync correctly?"
+          fi
+          echo "[prod-check] done."
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
