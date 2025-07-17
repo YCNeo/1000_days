@@ -138,11 +138,15 @@ footer {
 }
 
 /* === Lightbox === */
+.image {
+  cursor: zoom-in;
+}
+
 .lightbox-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
-  display: none; /* JS: set to flex when open */
+  display: none;
   justify-content: center;
   align-items: center;
   padding: 1rem;
@@ -151,6 +155,7 @@ footer {
 
 .lightbox-overlay.open {
   display: flex;
+  cursor: zoom-out;
 }
 
 .lightbox-overlay img {

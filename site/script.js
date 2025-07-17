@@ -1,6 +1,7 @@
 // Auto-assign alternating left/right if not specified; then fade-in reveal.
 // ALSO: click any .image img to open lightbox.
 document.addEventListener('DOMContentLoaded', () => {
+  // --- 交錯＆淡入 ---
   const blocks = Array.from(document.querySelectorAll('main .block'));
   blocks.forEach((el, i) => {
     if (!el.classList.contains('text-left') && !el.classList.contains('text-right')) {
@@ -19,8 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: 0.2 });
   blocks.forEach(el => io.observe(el));
 
-  // ---- Lightbox ----
-  // Create overlay DOM once
+  // --- Lightbox DOM ---
   const overlay = document.createElement('div');
   overlay.className = 'lightbox-overlay';
   overlay.innerHTML = `
@@ -35,11 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeBtn = overlay.querySelector('.lightbox-close');
 
   function openLightbox(imgEl) {
-    // Use data-full if provided; else src
     const fullSrc = imgEl.dataset.full || imgEl.src;
     overlayImg.src = fullSrc;
     overlayImg.alt = imgEl.alt || '';
-    // Caption: prefer section h2 text; fallback alt
     const section = imgEl.closest('section');
     const heading = section?.querySelector('h2')?.textContent?.trim();
     overlayCaption.textContent = heading || imgEl.alt || '';
@@ -55,26 +53,25 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = '';
   }
 
-  // Click image → open
+  // --- 修正：正確的事件委派 ---
   document.body.addEventListener('click', (e) => {
-    const img = e.target.closest('.image img');
-    if (img) {
-      e.preventDefault();
-      openLightbox(img);
-    }
+    const wrapper = e.target.closest('.image');
+    if (!wrapper) return;
+    const img = wrapper.querySelector('img');
+    if (!img) return;
+    e.preventDefault();
+    openLightbox(img);
   });
 
-  // Close button
   closeBtn.addEventListener('click', closeLightbox);
 
-  // Click backdrop (but ignore clicks on img or close button)
+  // 點黑底關閉（避免點到圖就關掉）
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
       closeLightbox();
     }
   });
 
-  // ESC to close
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && overlay.classList.contains('open')) {
       closeLightbox();
