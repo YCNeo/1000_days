@@ -304,65 +304,80 @@ async function rrResumeFromStored() {
 
 /* Guest (demo) mode */
 async function chooseGuest() {
-  hideAuthGate();  // 保險
+  /* 保險：任何情況下先關掉身份 Gate */
+  hideAuthGate();
+
   CURRENT_MODE = 'guest';
   setAuthMode('guest');
-  setAuthExp(Date.now() + DEFAULT_AUTH_TTL_MS); // arbitrary; just to suppress gate re-open within session
-  removeLS(AUTH_KP_KEY);
+  setAuthExp(Date.now() + DEFAULT_AUTH_TTL_MS); // 15 min TTL
+  removeLS(AUTH_KP_KEY); // 移除 RR 解密金鑰
 
+  /* 載入 demo 內容 */
   const content = await fetchJSON(PATH_SAMPLE_CONTENT);
   CURRENT_CONTENT = content;
+
+  /* 清 main root 並建立 sections */
   const root = $('#sections-root');
   if (root) root.innerHTML = '';
   buildSectionsFromContent(content);
   initBlocks();
   initLightbox();
-  initQuizLock(); // sample quiz OK
+  initQuizLock();
 
-  // 文字切換
-  $('#hero-desc').textContent = HERO_DESC_GUEST;
-  document.querySelector('footer p').textContent = FOOTER_DESC_GUEST;
+  /* 更新敘述文字（只在 index 有對應元素才更新） */
+  const heroDescEl = $('#hero-desc');
+  if (heroDescEl) heroDescEl.textContent = HERO_DESC_GUEST;
+
+  const footerP = document.querySelector('footer p');
+  if (footerP) footerP.textContent = FOOTER_DESC_GUEST;
 }
+
 
 /* After successful RR auth */
 async function chooseRR() {
+  /* 若尚未解密，嘗試從 localStorage 續用 */
   if (!RR_PAYLOAD) {
-    // try resume if TTL valid but no payload
-    if (rrAuthValid() && await rrResumeFromStored()) {
-      // ok
-    } else {
-      console.warn('chooseRR without payload, fallback to guest');
+    const resumed = rrAuthValid() && await rrResumeFromStored();
+    if (!resumed) {
+      console.warn('chooseRR(): no payload, fallback guest');
       return chooseGuest();
     }
   }
+
   CURRENT_MODE = 'rr';
+
+  /* 從已解密 payload 取得內容、卡片、圖片 */
   const { content, card_html, images } = RR_PAYLOAD;
 
-  // update global lock duration from payload meta
+  /* 依 content.meta 調整 quiz TTL（分鐘→毫秒） */
   const min = parseInt(content?.meta?.lock_duration_minutes, 10);
   if (!isNaN(min) && min > 0) LOCK_DURATION_MS = min * 60 * 1000;
 
-  // convert embedded images into objectURLs, patch content refs
-  const imgMap = {};
-  for (const [fname, dataUrl] of Object.entries(images || {})) {
-    imgMap[fname] = dataUrl; // dataURL 直接使用
-  }
-  const patched = patchContentImages(content, imgMap);
-  CURRENT_CONTENT = patched;
+  /* 圖片 dataURL 映射到 content references */
+  const patchedContent = patchContentImages(content, images || {});
+  CURRENT_CONTENT = patchedContent;
 
   if (IS_CARD_PAGE) {
+    /* 若在 /card.html → 直接注入私密卡片 */
     injectRRCard(card_html);
   } else {
+    /* 在首頁 → 重新渲染 sections */
     const root = $('#sections-root');
     if (root) root.innerHTML = '';
-    buildSectionsFromContent(patched);
+    buildSectionsFromContent(patchedContent);
     initBlocks();
     initLightbox();
     initQuizLock();
-    $('#hero-desc').textContent = HERO_DESC_RR;
-    document.querySelector('footer p').textContent = FOOTER_DESC_RR;
   }
+
+  /* 更新敘述文字（若元素存在） */
+  const heroDescEl = $('#hero-desc');
+  if (heroDescEl) heroDescEl.textContent = HERO_DESC_RR;
+
+  const footerP = document.querySelector('footer p');
+  if (footerP) footerP.textContent = FOOTER_DESC_RR;
 }
+
 
 /* patch content image src -> mapped data URLs */
 function patchContentImages(content, imgMap) {
@@ -736,18 +751,18 @@ function initThemeToggle() {
 function initScrollToggle() {
   const btn = document.getElementById('scroll-toggle');
   if (!btn) return;
-  btn.addEventListener('click', () => {
-    const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
-    if (atBottom) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }
-  });
-  window.addEventListener('scroll', () => {
+
+  function updateDir() {
     const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
     document.body.classList.toggle('scroll-bottom', atBottom);
-  }, { passive: true });
+  }
+  btn.addEventListener('click', () => {
+    const atBottom = document.body.classList.contains('scroll-bottom');
+    const target = atBottom ? 0 : document.body.scrollHeight;
+    window.scrollTo({ top: target, behavior: 'smooth' });
+  });
+  window.addEventListener('scroll', updateDir, { passive: true });
+  updateDir(); // 初始判斷
 }
 
 
