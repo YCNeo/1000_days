@@ -1,26 +1,59 @@
-// Auto-assign alternating left/right if not specified; then fade-in reveal.
-// ALSO: click any .image to open lightbox (mobile fixed).
-document.addEventListener('DOMContentLoaded', () => {
-  // --- 交錯＆淡入 ---
-  const blocks = Array.from(document.querySelectorAll('main .block'));
-  blocks.forEach((el, i) => {
-    if (!el.classList.contains('text-left') && !el.classList.contains('text-right')) {
-      el.classList.add(i % 2 === 0 ? 'text-left' : 'text-right'); // 桌機用
-    }
-    el.classList.add('reveal');
+// Theme utils ----------------------------------------------------
+const THEME_KEY = 'theme-v1';
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
+function saveTheme(theme) {
+  try { localStorage.setItem(THEME_KEY, theme); } catch (_) { }
+}
+
+function getSavedTheme() {
+  try { return localStorage.getItem(THEME_KEY); } catch (_) { return null; }
+}
+
+function detectSystemTheme() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark' : 'light';
+}
+
+function initThemeToggle() {
+  const saved = getSavedTheme();
+  const initial = saved || detectSystemTheme();
+  applyTheme(initial);
+
+  // create button
+  const btn = document.createElement('button');
+  btn.id = 'theme-toggle';
+  btn.className = 'theme-toggle';
+  btn.type = 'button';
+  btn.setAttribute('aria-label', '切換深淺模式 (Dark / Light)');
+  const updateIcon = (t) => { btn.textContent = t === 'dark' ? '☀️' : '🌙'; };
+  updateIcon(initial);
+
+  btn.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    saveTheme(next);
+    updateIcon(next);
   });
 
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('reveal-visible');
-        io.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.2 });
-  blocks.forEach(el => io.observe(el));
+  document.body.appendChild(btn);
 
-  // --- Lightbox DOM ---
+  // Update icon if system changes *and* user never manually saved
+  if (!saved && window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      const sys = e.matches ? 'dark' : 'light';
+      applyTheme(sys);
+      updateIcon(sys);
+    });
+  }
+}
+
+// Lightbox utils ----------------------------------------------------
+function initLightbox() {
   const overlay = document.createElement('div');
   overlay.className = 'lightbox-overlay';
   overlay.innerHTML = `
@@ -42,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const heading = section?.querySelector('h2')?.textContent?.trim();
     overlayCaption.textContent = heading || imgEl.alt || '';
     overlay.classList.add('open');
+    document.body.classList.add('lightbox-open');   // ✅ hide theme toggle
     document.body.style.overflow = 'hidden';
     closeBtn.focus();
   }
@@ -50,10 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.classList.remove('open');
     overlayImg.src = '';
     overlayCaption.textContent = '';
+    document.body.classList.remove('lightbox-open'); // ✅ restore theme toggle
     document.body.style.overflow = '';
   }
 
-  // --- 修正手機：抓最近的 .image 容器 ---
+  // mobile-safe click delegation
   document.body.addEventListener('click', (e) => {
     const wrapper = e.target.closest('.image');
     if (!wrapper) return;
@@ -65,17 +100,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   closeBtn.addEventListener('click', closeLightbox);
 
-  // 點黑底關閉
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closeLightbox();
-    }
+    if (e.target === overlay) closeLightbox();
   });
 
-  // ESC
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('open')) {
-      closeLightbox();
-    }
+    if (e.key === 'Escape' && overlay.classList.contains('open')) closeLightbox();
   });
+}
+
+// Desktop alt layout & reveal ---------------------------------------
+function initBlocks() {
+  const blocks = Array.from(document.querySelectorAll('main .block'));
+  if (!blocks.length) return;
+
+  blocks.forEach((el, i) => {
+    if (!el.classList.contains('text-left') && !el.classList.contains('text-right')) {
+      el.classList.add(i % 2 === 0 ? 'text-left' : 'text-right'); // desktop alt
+    }
+    el.classList.add('reveal');
+  });
+
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('reveal-visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.2 });
+  blocks.forEach(el => io.observe(el));
+}
+
+// DOM ready ---------------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+  initThemeToggle();
+  initBlocks();
+  initLightbox();
 });

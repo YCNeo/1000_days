@@ -1,7 +1,27 @@
 :root {
-  --pink-bg: #fff5f7;
-  --pink-accent: #ff8fb1;
-  --max-width: 1200px;
+  /* Light theme vars */
+  --bg: #ffffff;
+  --bg-hero: #fff5f7;
+  --bg-card: #fff5f7;
+  --text: #333333;
+  --text-muted: #555555;
+  --accent: #ff8fb1;
+  --footer-bg: #fff5f7;
+  --overlay-bg: rgba(0, 0, 0, 0.85);
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* ==== Dark Theme: 柔和夜幕粉 ==== */
+[data-theme="dark"] {
+  --bg: #0f0d11;
+  --bg-hero: linear-gradient(160deg, #2b1226 0%, #0f0d11 100%);
+  --bg-card: #1d1620;
+  --text: #f7f5f8;
+  --text-muted: #d3c7d8;
+  --accent: #ff72c6;
+  --footer-bg: #1d1620;
+  --overlay-bg: rgba(0, 0, 0, 0.9);
+  --shadow: rgba(0, 0, 0, 0.85);
 }
 
 * {
@@ -14,16 +34,18 @@ body {
 }
 body {
   font-family: "Helvetica Neue", sans-serif;
-  background: #fff;
-  color: #333;
+  background: var(--bg);
+  color: var(--text);
   line-height: 1.7;
   font-size: 18px;
+  transition: background 0.3s, color 0.3s;
 }
 
 .hero {
   text-align: center;
   padding: 4rem 1rem 3rem;
-  background: var(--pink-bg);
+  background: var(--bg-hero);
+  transition: background 0.3s;
 }
 .hero h1 {
   margin: 0 0 0.5rem;
@@ -32,13 +54,14 @@ body {
 .hero p {
   margin: 0 0 1.5rem;
   font-size: 1.25rem;
-  color: #555;
+  color: var(--text-muted);
+  transition: color 0.3s;
 }
 .hero .cta {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   border-radius: 999px;
-  background: var(--pink-accent);
+  background: var(--accent);
   color: #fff;
   text-decoration: none;
   font-weight: bold;
@@ -50,7 +73,7 @@ body {
 }
 
 main {
-  max-width: var(--max-width);
+  max-width: 1200px;
   margin: 0 auto;
 }
 .block {
@@ -80,7 +103,8 @@ main {
 .text h2 {
   margin-top: 0;
   font-size: 2rem;
-  color: var(--pink-accent);
+  color: var(--accent);
+  transition: color 0.3s;
 }
 .text p {
   margin: 1em 0;
@@ -89,8 +113,9 @@ main {
   width: 100%;
   height: auto;
   border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px var(--shadow);
   object-fit: cover;
+  transition: box-shadow 0.3s;
 }
 
 .from {
@@ -101,21 +126,21 @@ main {
 footer {
   text-align: center;
   padding: 2rem 1rem;
-  background: var(--pink-bg);
+  background: var(--footer-bg);
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-muted);
+  transition: background 0.3s, color 0.3s;
 }
 
-/* RWD */
+/* --- Mobile: force text then image --- */
 @media (max-width: 768px) {
   .block {
     flex-direction: column;
     padding: 3rem 1rem;
   }
-  /* 統一：手機一律文字在上、圖片在下 */
   .block .text {
     order: 1 !important;
-    text-align: center; /* 可選，手機排版更好看 */
+    text-align: center;
   }
   .block .image {
     order: 2 !important;
@@ -128,7 +153,7 @@ footer {
   }
 }
 
-/* 簡單淡入動畫，可由 JS 加上 .reveal-visible */
+/* --- Reveal animation --- */
 .reveal {
   opacity: 0;
   transform: translateY(30px);
@@ -147,12 +172,12 @@ footer {
 .lightbox-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--overlay-bg);
   display: none;
   justify-content: center;
   align-items: center;
   padding: 1rem;
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .lightbox-overlay.open {
@@ -191,4 +216,30 @@ footer {
   color: rgba(255, 255, 255, 0.9);
   font-size: 1rem;
   padding: 0 1rem;
+}
+
+/* === Theme toggle button === */
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1500; /* lower than lightbox */
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Hide theme toggle when lightbox open */
+body.lightbox-open .theme-toggle {
+  opacity: 0;
+  pointer-events: none;
 }
