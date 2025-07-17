@@ -1,6 +1,5 @@
 /* =========================================================
    THEME VARIABLES
-   Light is default (:root). Additional themes via [data-theme].
    ========================================================= */
 :root {
   /* Light theme vars (原本樣式) */
@@ -13,6 +12,10 @@
   --footer-bg: #fff5f7;
   --overlay-bg: rgba(0, 0, 0, 0.85);
   --shadow: rgba(0, 0, 0, 0.1);
+
+  /* icon masks (fallback padlock) */
+  --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5Zm-3 5a3 3 0 1 1 6 0v3H9V7Zm2 6h2v4h-2v-4Z'/%3E%3C/svg%3E");
+  --unlock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M17 10V7a5 5 0 0 0-9.58-1.98l1.86.75A3 3 0 0 1 15 7v3H5v12h14V10h-2Zm-5 3h2v4h-2v-4Z'/%3E%3C/svg%3E");
 }
 
 /* ==== Dark Theme A: 柔和夜幕粉 ==== */
@@ -26,6 +29,10 @@
   --footer-bg: #1d1620;
   --overlay-bg: rgba(0, 0, 0, 0.9);
   --shadow: rgba(0, 0, 0, 0.85);
+
+  /* 可改為愛心鎖 SVG */
+  --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M16 4c-3.3 0-6 2.7-6 6v3H7v15h18V13h-3v-3c0-3.3-2.7-6-6-6Zm-4 6c0-2.2 1.8-4 4-4s4 1.8 4 4v3h-8v-3Zm4 6c1.1 0 2 .9 2 2v4h-4v-4c0-1.1.9-2 2-2Z'/%3E%3C/svg%3E");
+  --unlock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M23 13v-3a7 7 0 0 0-13.41-2.54l1.84.78A5 5 0 0 1 21 10v3h-2H9v15h18V13h-4Zm-7 4c1.1 0 2 .9 2 2v4h-4v-4c0-1.1.9-2 2-2Z'/%3E%3C/svg%3E");
 }
 
 /* ==== Dark Theme B: 星空奶油粉 ==== */
@@ -49,6 +56,10 @@
   --footer-bg: #1a1e33;
   --overlay-bg: rgba(0, 0, 0, 0.9);
   --shadow: rgba(0, 0, 0, 0.8);
+
+  /* 星形鎖 */
+  --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M16 2 13 10H5l6.5 5L9 24l7-4 7 4-2.5-9L27 10h-8l-3-8Zm-2 15h4v5h-4v-5Z'/%3E%3C/svg%3E");
+  --unlock-icon: var(--lock-icon);
 }
 
 /* ==== Dark Theme C: 暖燭光 ==== */
@@ -62,6 +73,10 @@
   --footer-bg: #2b1c12;
   --overlay-bg: rgba(0, 0, 0, 0.9);
   --shadow: rgba(0, 0, 0, 0.9);
+
+  /* 燭火鎖 */
+  --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M16 2c0 3-3 4-3 7s3 5 3 5 3-2 3-5-3-4-3-7Zm-7 13v15h14V15H9Zm7 3c1.1 0 2 .9 2 2v4h-4v-4c0-1.1.9-2 2-2Z'/%3E%3C/svg%3E");
+  --unlock-icon: var(--lock-icon);
 }
 
 /* =========================================================
@@ -125,7 +140,7 @@ main {
   align-items: center;
   padding: 4rem 1rem;
   min-height: 60vh;
-  position: relative; /* for lock overlays */
+  position: relative;
 }
 .text-left .text {
   order: 1;
@@ -212,7 +227,6 @@ footer {
 .image {
   cursor: zoom-in;
 }
-
 .lightbox-overlay {
   position: fixed;
   inset: 0;
@@ -227,7 +241,6 @@ footer {
   display: flex;
   cursor: zoom-out;
 }
-
 .lightbox-overlay img {
   max-width: 90vw;
   max-height: 90vh;
@@ -259,12 +272,12 @@ footer {
   padding: 0 1rem;
 }
 
-/* === Theme toggle button === */
+/* === Theme toggle === */
 .theme-toggle {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 1500; /* below lightbox (2000) / quiz (3000) */
+  z-index: 1500;
   background: var(--accent);
   color: #fff;
   border: none;
@@ -279,9 +292,33 @@ footer {
   transform: scale(0.95);
 }
 
-/* Hide theme toggle when lightbox or quiz open */
+/* === Music toggle === */
+.music-toggle {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 1490;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+.music-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Hide toggles when overlay open */
 body.lightbox-open .theme-toggle,
-body.quiz-open .theme-toggle {
+body.quiz-open .theme-toggle,
+body.lightbox-open .music-toggle,
+body.quiz-open .music-toggle {
   opacity: 0;
   pointer-events: none;
 }
@@ -296,7 +333,6 @@ body.quiz-open .theme-toggle {
   pointer-events: none;
   user-select: none;
 }
-/* overlay: 半透明暗罩 */
 .block.locked::before {
   content: "";
   position: absolute;
@@ -305,33 +341,51 @@ body.quiz-open .theme-toggle {
   border-radius: 16px;
   pointer-events: none;
 }
-/* 鎖頭 icon */
 .block.locked::after {
-  content: "🔒";
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(1.5);
-  font-size: 3rem;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  width: 64px;
+  height: 64px;
+  transform: translate(-50%, -50%);
+  background: var(--accent);
+  -webkit-mask: var(--lock-icon) center/contain no-repeat;
+  mask: var(--lock-icon) center/contain no-repeat;
   pointer-events: none;
 }
-/* 已解鎖提示（小圖示） */
-.block.unlocked::after {
-  content: "🔓";
+/* review/unlock badge */
+.quiz-review-btn {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  font-size: 1.5rem;
-  opacity: 0.6;
-  pointer-events: none;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: bold;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease;
 }
+.quiz-review-btn:active {
+  transform: scale(0.95);
+}
+.block.locked .quiz-review-btn {
+  display: none;
+} /* hide until unlocked */
 
 /* === Quiz Modal Overlay ========================================== */
 .quiz-overlay {
   position: fixed;
   inset: 0;
-  z-index: 3000; /* > lightbox */
+  z-index: 3000;
   background: rgba(0, 0, 0, 0.75);
   display: none;
   justify-content: center;
@@ -341,7 +395,6 @@ body.quiz-open .theme-toggle {
 .quiz-overlay.open {
   display: flex;
 }
-
 .quiz-card {
   width: min(90vw, 480px);
   max-width: 480px;
@@ -401,4 +454,48 @@ body.quiz-open .theme-toggle {
   cursor: pointer;
   font-size: 0.9rem;
   text-decoration: underline;
+  margin-right: 0.75rem;
+}
+.quiz-retake {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
+/* === THEME/MUSIC CONTROL REFINEMENTS ==================== */
+.theme-toggle {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0; /* hide text */
+}
+.theme-toggle::before {
+  content: "";
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) inset;
+}
+
+.music-toggle {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.music-toggle::before {
+  content: attr(data-icon); /* JS sets 🔈 or 🔇 */
+  font-size: 1.25rem;
+  line-height: 1;
 }

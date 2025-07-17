@@ -1,11 +1,18 @@
 {
   "meta": {
-    "version": 1,
-    "lock_duration_minutes": 15
+    "version": 3,
+    "lock_duration_minutes": 15,
+    "music": {
+      "light": "yt:zsK1GpSHe1A",
+      "nightpink": "yt:HuxQru2-3yg",
+      "starry": "yt:AhT_WzTIuPE",
+      "candle": "yt:L3nrNshAdaQ"
+    }
   },
   "sections": [
     {
       "id": "start",
+      "locked": true,
       "title": "初見與起點",
       "paragraphs": [
         "時間真快，回頭一看，已經是我們一起走過的一千天了。那個曾經在某個平凡日子裡遇見的妳，慢慢走進我的生活，然後一點一滴，變成了我心裡最特別的開始。",
@@ -24,6 +31,7 @@
     },
     {
       "id": "everyday",
+      "locked": true,
       "title": "我們的日常",
       "paragraphs": [
         "我們一起傻笑、一起沉默、一起面對生活裡的大小事。妳喜歡把好笑的梗圖傳給我；我喜歡看妳吃到好吃東西時眼睛發亮的樣子。平凡的每一天，因為有妳，都會亮起來。",
@@ -42,6 +50,7 @@
     },
     {
       "id": "love",
+      "locked": true,
       "title": "深深的愛",
       "paragraphs": [
         "我很愛妳。愛我們一起生活的節奏；愛妳對未來的期許；愛妳偶爾任性、又秒軟掉的可愛；愛妳為愛付出的細膩；愛妳整個人。",
@@ -60,6 +69,7 @@
     },
     {
       "id": "future",
+      "locked": true,
       "title": "未來的每一天",
       "paragraphs": [
         "請讓我繼續成為妳累的時候可以依靠、笑的時候可以分享的人。下一個千日、下一個一萬天，我都想牽著妳慢慢走下去。",
