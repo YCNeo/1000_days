@@ -1,0 +1,138 @@
+:root {
+  --pink-bg: #fff5f7;
+  --pink-accent: #ff8fb1;
+  --max-width: 1200px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: "Helvetica Neue", sans-serif;
+  background: #fff;
+  color: #333;
+  line-height: 1.7;
+  font-size: 18px;
+}
+
+.hero {
+  text-align: center;
+  padding: 4rem 1rem 3rem;
+  background: var(--pink-bg);
+}
+.hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+.hero p {
+  margin: 0 0 1.5rem;
+  font-size: 1.25rem;
+  color: #555;
+}
+.hero .cta {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  background: var(--pink-accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  transition: transform 0.1s ease;
+}
+.hero .cta:hover,
+.hero .cta:focus {
+  transform: scale(1.05);
+}
+
+main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+.block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 4rem 1rem;
+  min-height: 60vh;
+}
+.text-left .text {
+  order: 1;
+}
+.text-left .image {
+  order: 2;
+}
+.text-right .image {
+  order: 1;
+}
+.text-right .text {
+  order: 2;
+}
+.text,
+.image {
+  flex: 1 1 50%;
+  padding: 1rem;
+}
+.text h2 {
+  margin-top: 0;
+  font-size: 2rem;
+  color: var(--pink-accent);
+}
+.text p {
+  margin: 1em 0;
+}
+.image img {
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  object-fit: cover;
+}
+
+.from {
+  text-align: right;
+  font-weight: bold;
+}
+
+footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: var(--pink-bg);
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* RWD */
+@media (max-width: 768px) {
+  .block {
+    flex-direction: column;
+    padding: 3rem 1rem;
+  }
+  .text,
+  .image {
+    flex: 1 1 100%;
+    order: initial;
+    text-align: center;
+  }
+  .text h2 {
+    font-size: 1.75rem;
+  }
+  body {
+    font-size: 17px;
+  }
+}
+
+/* 簡單淡入動畫，可由 JS 加上 .reveal-visible */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.reveal-visible {
+  opacity: 1;
+  transform: none;
+}
