@@ -1,29 +1,69 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="light">
   <head>
     <meta charset="utf-8" />
-    <title>Card Sample</title>
+    <title>卡片 / Card</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="./style.css" />
     <style>
-      body {
+      .card-stub {
         max-width: 600px;
         margin: 4rem auto;
-        padding: 1rem;
-        text-align: center;
-      }
-      .card {
         padding: 2rem;
+        text-align: center;
         border: 2px dashed var(--accent);
         border-radius: 16px;
       }
     </style>
   </head>
-  <body>
-    <div class="card">
-      <h1>這裡是卡片示範</h1>
-      <p>Public repo 只放範例，不放真實內容。</p>
-      <p>Production 部署時會從 private repo 注入真正的小卡內容。</p>
+  <body data-page="card">
+    <div id="card-root" class="card-stub">
+      <h1>這是卡片示範</h1>
+      <p>若你是訪客，看到的是公開示範內容。</p>
+      <p>若你是 RR，驗證後會顯示專屬卡片 ❤️</p>
+      <p><a href="./index.html">回首頁</a></p>
     </div>
+
+    <!-- Auth Gate Overlay (同 index，可複製) -->
+    <div
+      id="auth-gate"
+      class="auth-gate"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-title"
+    >
+      <div class="auth-panel">
+        <h2 id="auth-title">請選擇身份</h2>
+        <div class="auth-role-select-wrap">
+          <label for="auth-role-select" class="visually-hidden">身份</label>
+          <select id="auth-role-select">
+            <option value="" selected disabled>-- 請選擇 --</option>
+            <option value="guest">訪客</option>
+            <option value="rr">RR</option>
+          </select>
+        </div>
+
+        <div id="auth-rr-field" class="auth-rr-field hidden">
+          <label id="auth-question" for="auth-rr-input"
+            >請輸入我們的小暗號（不分大小寫）</label
+          >
+          <input
+            type="password"
+            id="auth-rr-input"
+            autocomplete="off"
+            inputmode="text"
+          />
+          <button type="button" id="auth-rr-submit">送出</button>
+          <div
+            id="auth-rr-msg"
+            class="auth-rr-msg"
+            role="alert"
+            aria-live="polite"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./script.js" defer></script>
   </body>
 </html>

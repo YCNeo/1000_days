@@ -1,26 +1,71 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="light">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>我們的第1000天｜寫給妳</title>
-    <link rel="stylesheet" href="style.css" />
-    <script defer src="script.js"></script>
+    <title>1000 Days Story (Demo / RR)</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="description"
+      content="A love-story milestone site with demo and private RR mode."
+    />
+    <link rel="stylesheet" href="./style.css" />
   </head>
-  <body>
+  <body data-page="index">
     <header class="hero">
-      <h1>一千日的我們</h1>
-      <p>寫給我最愛的妳</p>
-      <a class="cta" href="card.html">打開小卡 💌</a>
+      <h1>我們的故事</h1>
+      <p>此站點支援訪客 Demo 與 RR 專屬模式。</p>
+      <a href="#sections-root" class="cta">往下看</a>
     </header>
 
-    <!-- 動態章節根節點 -->
     <main id="sections-root">
-      <noscript>需要啟用 JavaScript 才能瀏覽內容。</noscript>
+      <!-- sections injected by script.js after auth -->
     </main>
 
     <footer>
-      <p>With all my love, Neo</p>
+      <p>© 2025. 手作愛情站示範版。</p>
     </footer>
+
+    <!-- Auth Gate Overlay -->
+    <div
+      id="auth-gate"
+      class="auth-gate"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-title"
+    >
+      <div class="auth-panel">
+        <h2 id="auth-title">請選擇身份</h2>
+        <div class="auth-role-select-wrap">
+          <label for="auth-role-select" class="visually-hidden">身份</label>
+          <select id="auth-role-select">
+            <option value="" selected disabled>-- 請選擇 --</option>
+            <option value="guest">訪客</option>
+            <option value="rr">RR</option>
+          </select>
+        </div>
+
+        <div id="auth-rr-field" class="auth-rr-field hidden">
+          <label id="auth-question" for="auth-rr-input"
+            >請輸入我們的小暗號（不分大小寫）</label
+          >
+          <input
+            type="password"
+            id="auth-rr-input"
+            autocomplete="off"
+            inputmode="text"
+          />
+          <button type="button" id="auth-rr-submit">送出</button>
+          <div
+            id="auth-rr-msg"
+            class="auth-rr-msg"
+            role="alert"
+            aria-live="polite"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./script.js" defer></script>
   </body>
 </html>

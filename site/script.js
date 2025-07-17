@@ -1,21 +1,41 @@
 /* =========================================================
-   1000 DAYS SITE SCRIPT (No-Music Edition v4)
+   1000 DAYS SITE SCRIPT – RR Auth + Encrypted Payload (B2)
    ========================================================= */
 
-/* ----- CONFIG ----- */
+/* -------------------- CONFIG -------------------- */
 const THEMES = ['light', 'nightpink', 'starry', 'candle'];
-const THEME_KEY = 'theme-v3';        // same key so saved theme persists
-let LOCK_DURATION_MS = 15 * 60 * 1000; // fallback; overridden by content.json
+const THEME_KEY = 'theme-v3';
 
-/* ----- RUNTIME STATE ----- */
-let CONTENT = null;
-const QUIZ_DATA = {};
+const AUTH_MODE_KEY = 'rrAuthMode';     // 'guest' | 'rr'
+const AUTH_EXP_KEY = 'rrAuthExp';      // ms epoch
+const AUTH_KP_KEY = 'rrAuthKp';       // base64 master key
+
+// path constants (relative)
+const PATH_SAMPLE_CONTENT = 'content.sample.json';
+const PATH_SAMPLE_CARD = 'card.sample.html';
+const PATH_PRIVATE_ENC = 'private.enc.json'; // produced in prod build
+
+// fallback TTL if payload missing
+const DEFAULT_AUTH_TTL_MS = 15 * 60 * 1000;
+
+/* quiz lock fallback; overwritten by content meta */
+let LOCK_DURATION_MS = 15 * 60 * 1000;
+
+/* runtime state */
+let CURRENT_MODE = null;       // 'guest' or 'rr'
+let CURRENT_CONTENT = null;    // content JSON currently bound to DOM
+let RR_PAYLOAD = null;         // decrypted payload {content, card_html, images}
+let QUIZ_DATA = {};
 let quizOverlay = null, qEl, optsWrap, msgEl, cancelBtn, retakeBtn;
 let currentId = null, currentSection = null;
+let IS_CARD_PAGE = document.body.dataset.page === 'card';
 
 /* =========================================================
-   THEME UTIL
+   UTIL HELPERS
    ========================================================= */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
 function detectSystemTheme() {
   return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
     ? 'nightpink' : 'light';
@@ -26,26 +46,341 @@ function currentTheme() {
 function saveTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) { } }
 function getSavedTheme() { try { return localStorage.getItem(THEME_KEY); } catch (_) { return null; } }
 
+/* fetch JSON helper */
+async function fetchJSON(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`fetch ${path} ${res.status}`);
+  return res.json();
+}
+async function fetchText(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`fetch ${path} ${res.status}`);
+  return res.text();
+}
+
+/* base64 <-> ArrayBuffer */
+function b64ToBuf(b64) {
+  const bin = atob(b64);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function bufToB64(buf) {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let bin = ''; for (let b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+/* text -> ArrayBuffer */
+const te = new TextEncoder();
+const td = new TextDecoder();
+
+/* answer normalization: sync with build script */
+function normalizeAnswer(s) {
+  if (!s) return '';
+  let out = s.replace(/\s+/g, '');                      // remove whitespace
+  out = out.replace(/[-_./:：;；,，]/g, '');            // remove common punct
+  out = out.toLowerCase();
+  return out;
+}
+
+/* PBKDF2 derive raw key */
+async function deriveKeyRaw(passNorm, saltBuf, iter = 250000) {
+  const passKey = await crypto.subtle.importKey(
+    'raw', te.encode(passNorm), { name: 'PBKDF2' }, false, ['deriveBits', 'deriveKey']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: saltBuf, iterations: iter, hash: 'SHA-256' },
+    passKey, 256
+  );
+  return bits; // ArrayBuffer 32 bytes
+}
+
+/* AES-GCM encrypt/decrypt raw */
+async function aesGcmEncryptRaw(keyBuf, ptBuf) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt']);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, ptBuf);
+  return { iv, ct };
+}
+async function aesGcmDecryptRaw(keyBuf, ivBuf, ctBuf) {
+  const key = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['decrypt']);
+  return crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(ivBuf) }, key, ctBuf);
+}
+
+/* localStorage helpers */
+function getLS(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+function setLS(k, v) { try { localStorage.setItem(k, v); } catch (_) { } }
+function removeLS(k) { try { localStorage.removeItem(k); } catch (_) { } }
+
+/* auth TTL helpers */
+function getAuthExp() { const v = parseInt(getLS(AUTH_EXP_KEY), 10); return isNaN(v) ? 0 : v; }
+function setAuthExp(ms) { setLS(AUTH_EXP_KEY, String(ms)); }
+function getAuthMode() { return getLS(AUTH_MODE_KEY); }
+function setAuthMode(m) { setLS(AUTH_MODE_KEY, m); }
+function getStoredKp() { const b64 = getLS(AUTH_KP_KEY); return b64 ? b64ToBuf(b64) : null; }
+function setStoredKp(buf) { setLS(AUTH_KP_KEY, bufToB64(buf)); }
+function clearAuth() { removeLS(AUTH_MODE_KEY); removeLS(AUTH_EXP_KEY); removeLS(AUTH_KP_KEY); }
+
+/* is current rr auth valid? */
+function rrAuthValid() {
+  const mode = getAuthMode();
+  if (mode !== 'rr') return false;
+  const exp = getAuthExp();
+  if (!exp || Date.now() > exp) { clearAuth(); return false; }
+  return true;
+}
+
 /* =========================================================
-   CONTENT LOAD + BUILD
+   AUTH GATE UI
    ========================================================= */
-async function loadContent() {
-  try {
-    const res = await fetch('content.json?cb=' + Date.now(), { cache: 'no-store' });
-    CONTENT = await res.json();
-    const min = parseInt(CONTENT?.meta?.lock_duration_minutes, 10);
-    if (!isNaN(min) && min > 0) LOCK_DURATION_MS = min * 60 * 1000;
-  } catch (err) {
-    console.error('載入 content.json 失敗：', err);
-    CONTENT = { sections: [] };
+let authGateEl, authSelectEl, authRRField, authRRInput, authRRSubmit, authRRMsg, authQuestionEl;
+
+function initAuthGateUI() {
+  authGateEl = $('#auth-gate');
+  authSelectEl = $('#auth-role-select');
+  authRRField = $('#auth-rr-field');
+  authRRInput = $('#auth-rr-input');
+  authRRSubmit = $('#auth-rr-submit');
+  authRRMsg = $('#auth-rr-msg');
+  authQuestionEl = $('#auth-question');
+
+  if (!authGateEl) return; // no gate? skip
+  document.body.classList.add('auth-open');
+
+  authSelectEl?.addEventListener('change', onAuthRoleChange);
+  authRRSubmit?.addEventListener('click', onAuthRRSubmit);
+  authRRInput?.addEventListener('keyup', e => { if (e.key === 'Enter') onAuthRRSubmit(); });
+}
+
+function showAuthRRField() {
+  authRRField?.classList.remove('hidden');
+  authRRInput?.focus();
+}
+
+function hideAuthGate() {
+  authGateEl?.classList.add('hidden');
+  document.body.classList.remove('auth-open');
+}
+
+function onAuthRoleChange() {
+  const val = authSelectEl.value;
+  if (val === 'guest') {
+    chooseGuest();
+  } else if (val === 'rr') {
+    // Load question from payload metadata if available; else fallback label text.
+    loadQuestionMeta().then(q => {
+      if (q) authQuestionEl.textContent = q;
+    });
+    showAuthRRField();
   }
 }
 
-function buildSectionsFromContent() {
-  const root = document.querySelector('#sections-root') || document.querySelector('main');
+async function onAuthRRSubmit() {
+  const ans = authRRInput.value.trim();
+  if (!ans) { authRRMsg.textContent = '請輸入暗號'; return; }
+  authRRSubmit.disabled = true;
+  authRRMsg.textContent = '驗證中...';
+
+  try {
+    const ok = await attemptRRAuth(ans);
+    if (ok) {
+      authRRMsg.textContent = '成功！載入中...';
+      hideAuthGate();
+      await chooseRR();  // load rr content
+    } else {
+      authRRMsg.textContent = '不對喔，再試一次～';
+      authRRSubmit.disabled = false;
+      authRRInput.focus();
+      authRRInput.select();
+    }
+  } catch (err) {
+    console.error(err);
+    authRRMsg.textContent = '驗證錯誤（請稍後重試）';
+    authRRSubmit.disabled = false;
+  }
+}
+
+/* load question meta from enc (without decrypt) */
+let _metaCache = null;
+async function loadQuestionMeta() {
+  if (_metaCache) return _metaCache.question;
+  try {
+    const meta = await fetchJSON(PATH_PRIVATE_ENC);
+    _metaCache = meta;
+    return meta.question || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+/* =========================================================
+   RR AUTH / DECRYPT WORKFLOW
+   ========================================================= */
+
+/* Attempt to authenticate using input answer; returns boolean */
+async function attemptRRAuth(answerRaw) {
+  const meta = await fetchJSON(PATH_PRIVATE_ENC);
+  const norm = normalizeAnswer(answerRaw);
+
+  const salt = b64ToBuf(meta.salt);
+  const iter = meta.pbkdf2_iter || 250000;
+
+  // derive key from answer
+  const keyA = await deriveKeyRaw(norm, salt, iter);
+
+  // try decrypt each envelope; success -> masterKey
+  let masterKeyBuf = null;
+  for (const env of meta.envelopes) {
+    try {
+      const ivBuf = b64ToBuf(env.iv);
+      const ctBuf = b64ToBuf(env.data);
+      const pt = await aesGcmDecryptRaw(keyA, ivBuf, ctBuf);
+      if (pt.byteLength === 32) {
+        masterKeyBuf = pt;
+        break;
+      }
+    } catch (_) { }
+  }
+  if (!masterKeyBuf) {
+    return false; // wrong answer
+  }
+
+  // decrypt payload
+  try {
+    const payloadIv = b64ToBuf(meta.payload.iv);
+    const payloadCt = b64ToBuf(meta.payload.data);
+    const payloadBuf = await aesGcmDecryptRaw(masterKeyBuf, payloadIv, payloadCt);
+    const payloadObj = JSON.parse(td.decode(payloadBuf));
+    RR_PAYLOAD = payloadObj;
+
+    // save auth state
+    const ttl = meta.ttl_ms ?? DEFAULT_AUTH_TTL_MS;
+    setAuthMode('rr');
+    setAuthExp(Date.now() + ttl);
+    // store master key to shortcut future decrypt (TTL)
+    setStoredKp(masterKeyBuf);
+    return true;
+  } catch (err) {
+    console.error('payload decrypt failed', err);
+    return false;
+  }
+}
+
+/* Direct load using stored master key (TTL valid) */
+async function rrResumeFromStored() {
+  const kpBuf = getStoredKp();
+  if (!kpBuf) return false;
+  const meta = await fetchJSON(PATH_PRIVATE_ENC);
+  try {
+    const payloadIv = b64ToBuf(meta.payload.iv);
+    const payloadCt = b64ToBuf(meta.payload.data);
+    const payloadBuf = await aesGcmDecryptRaw(kpBuf, payloadIv, payloadCt);
+    const payloadObj = JSON.parse(td.decode(payloadBuf));
+    RR_PAYLOAD = payloadObj;
+    // refresh TTL
+    const ttl = meta.ttl_ms ?? DEFAULT_AUTH_TTL_MS;
+    setAuthExp(Date.now() + ttl);
+    return true;
+  } catch (err) {
+    console.warn('rrResumeFromStored decrypt fail', err);
+    clearAuth();
+    return false;
+  }
+}
+
+/* =========================================================
+   MODE LOADERS
+   ========================================================= */
+
+/* Guest (demo) mode */
+async function chooseGuest() {
+  CURRENT_MODE = 'guest';
+  setAuthMode('guest');
+  setAuthExp(Date.now() + DEFAULT_AUTH_TTL_MS); // arbitrary; just to suppress gate re-open within session
+  removeLS(AUTH_KP_KEY);
+
+  const content = await fetchJSON(PATH_SAMPLE_CONTENT);
+  CURRENT_CONTENT = content;
+  const root = $('#sections-root');
+  if (root) root.innerHTML = '';
+  buildSectionsFromContent(content);
+  initBlocks();
+  initLightbox();
+  initQuizLock(); // sample quiz OK
+}
+
+/* After successful RR auth */
+async function chooseRR() {
+  if (!RR_PAYLOAD) {
+    // try resume if TTL valid but no payload
+    if (rrAuthValid() && await rrResumeFromStored()) {
+      // ok
+    } else {
+      console.warn('chooseRR without payload, fallback to guest');
+      return chooseGuest();
+    }
+  }
+  CURRENT_MODE = 'rr';
+  const { content, card_html, images } = RR_PAYLOAD;
+
+  // update global lock duration from payload meta
+  const min = parseInt(content?.meta?.lock_duration_minutes, 10);
+  if (!isNaN(min) && min > 0) LOCK_DURATION_MS = min * 60 * 1000;
+
+  // convert embedded images into objectURLs, patch content refs
+  const imgMap = {};
+  for (const [fname, dataUrl] of Object.entries(images || {})) {
+    imgMap[fname] = dataUrl; // dataURL 直接使用
+  }
+  const patched = patchContentImages(content, imgMap);
+  CURRENT_CONTENT = patched;
+
+  if (IS_CARD_PAGE) {
+    injectRRCard(card_html);
+  } else {
+    const root = $('#sections-root');
+    if (root) root.innerHTML = '';
+    buildSectionsFromContent(patched);
+    initBlocks();
+    initLightbox();
+    initQuizLock();
+  }
+}
+
+/* patch content image src -> mapped data URLs */
+function patchContentImages(content, imgMap) {
+  const clone = JSON.parse(JSON.stringify(content));
+  (clone.sections || []).forEach(sec => {
+    const img = sec.image || {};
+    // basename
+    const pFull = img.full || img.thumb || '';
+    const base = pFull.split('/').pop();
+    if (imgMap[base]) {
+      img.full = imgMap[base];
+      img.thumb = imgMap[base];
+    }
+  });
+  return clone;
+}
+
+/* card injection (RR) */
+function injectRRCard(html) {
+  const root = $('#card-root');
+  if (!root) return;
+  root.innerHTML = html;
+  // ensure root visible (card.sample.html stub already)
+}
+
+/* =========================================================
+   QUIZ LOCK + SECTION BUILDER (same as previous w/ minor adapt)
+   ========================================================= */
+function buildSectionsFromContent(content) {
+  const root = $('#sections-root');
   if (!root) return;
   root.innerHTML = '';
-  const secs = CONTENT?.sections || [];
+  const secs = content?.sections || [];
   secs.forEach((sec) => {
     const el = document.createElement('section');
     el.className = 'block';
@@ -76,7 +411,7 @@ function buildSectionsFromContent() {
     el.appendChild(textDiv);
     el.appendChild(imgDiv);
 
-    // review button (hidden while locked)
+    // review button
     const reviewBtn = document.createElement('button');
     reviewBtn.type = 'button';
     reviewBtn.className = 'quiz-review-btn';
@@ -92,42 +427,7 @@ function buildSectionsFromContent() {
   });
 }
 
-/* =========================================================
-   THEME TOGGLE (no music)
-   ========================================================= */
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-}
-function initThemeToggle() {
-  const saved = getSavedTheme();
-  const initial = (saved && THEMES.includes(saved)) ? saved : detectSystemTheme();
-  applyTheme(initial);
-
-  const btn = document.createElement('button');
-  btn.id = 'theme-toggle';
-  btn.className = 'theme-toggle';
-  btn.type = 'button';
-  btn.setAttribute('aria-label', '切換主題');
-  btn.textContent = '•'; // hidden via CSS
-  btn.addEventListener('click', () => {
-    const curr = currentTheme();
-    const nxt = THEMES[(THEMES.indexOf(curr) + 1) % THEMES.length];
-    applyTheme(nxt); saveTheme(nxt);
-  });
-  document.body.appendChild(btn);
-
-  if (!saved && window.matchMedia) {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    mq.addEventListener('change', e => {
-      const sys = e.matches ? 'nightpink' : 'light';
-      applyTheme(sys); saveTheme(sys);
-    });
-  }
-}
-
-/* =========================================================
-   QUIZ LOCK (with review)
-   ========================================================= */
+/* quiz localStorage keys */
 const lsKey = (id) => `quizUnlock:${id}`;
 const lsAnsKey = (id) => `quizAns:${id}`;
 
@@ -165,9 +465,9 @@ function unlockSection(section) {
   section.removeAttribute('aria-locked');
 }
 
-function buildQuizDataFromContent() {
+function buildQuizDataFromContent(content) {
   const out = {};
-  (CONTENT?.sections || []).forEach(sec => {
+  (content?.sections || []).forEach(sec => {
     if (sec.quiz) {
       out[sec.id] = {
         q: sec.quiz.question,
@@ -183,12 +483,12 @@ function buildQuizUI() {
   quizOverlay = document.createElement('div');
   quizOverlay.className = 'quiz-overlay';
   quizOverlay.innerHTML = `
-    <div class="quiz-card" role="dialog" aria-modal="true">
-      <h3 id="quiz-q"></h3>
-      <div class="quiz-options" id="quiz-opts"></div>
-      <div class="quiz-msg" id="quiz-msg"></div>
-      <button class="quiz-cancel" type="button">取消</button>
-      <button class="quiz-retake" type="button" style="display:none;">重新答題</button>
+    <div class=\"quiz-card\" role=\"dialog\" aria-modal=\"true\">
+      <h3 id=\"quiz-q\"></h3>
+      <div class=\"quiz-options\" id=\"quiz-opts\"></div>
+      <div class=\"quiz-msg\" id=\"quiz-msg\"></div>
+      <button class=\"quiz-cancel\" type=\"button\">取消</button>
+      <button class=\"quiz-retake\" type=\"button\" style=\"display:none;\">重新答題</button>
     </div>`;
   document.body.appendChild(quizOverlay);
   qEl = quizOverlay.querySelector('#quiz-q');
@@ -279,12 +579,12 @@ function submitAnswer(choiceIdx) {
 }
 
 function initQuizLock() {
-  Object.assign(QUIZ_DATA, buildQuizDataFromContent());
+  QUIZ_DATA = buildQuizDataFromContent(CURRENT_CONTENT);
   buildQuizUI();
   const sections = Array.from(document.querySelectorAll('main .block[id]'));
   sections.forEach(sec => {
     const id = sec.id;
-    const spec = CONTENT.sections.find(s => s.id === id);
+    const spec = CURRENT_CONTENT.sections.find(s => s.id === id);
     const shouldLock = (spec?.locked ?? !!QUIZ_DATA[id]);
     const unlocked = shouldLock ? isUnlocked(id) : true;
     if (unlocked) {
@@ -300,7 +600,7 @@ function initQuizLock() {
     }, true);
   });
 
-  // refresh TTL with activity
+  // refresh TTL w/ any activity
   ['click', 'scroll', 'keydown', 'touchstart', 'visibilitychange', 'focus'].forEach(ev => {
     window.addEventListener(ev, () => {
       sections.forEach(sec => {
@@ -311,15 +611,15 @@ function initQuizLock() {
 }
 
 /* =========================================================
-   LIGHTBOX (respect lock)
+   LIGHTBOX
    ========================================================= */
 function initLightbox() {
   const overlay = document.createElement('div');
   overlay.className = 'lightbox-overlay';
   overlay.innerHTML = `
-    <button class="lightbox-close" aria-label="關閉圖片">&times;</button>
-    <img alt="">
-    <div class="lightbox-caption" role="note"></div>
+    <button class=\"lightbox-close\" aria-label=\"關閉圖片\">&times;</button>
+    <img alt=\"\">
+    <div class=\"lightbox-caption\" role=\"note\"></div>
   `;
   document.body.appendChild(overlay);
 
@@ -386,13 +686,64 @@ function initBlocks() {
 }
 
 /* =========================================================
-   MAIN INIT
+   THEME TOGGLE
    ========================================================= */
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadContent();
-  buildSectionsFromContent();
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+function initThemeToggle() {
+  const saved = getSavedTheme();
+  const initial = (saved && THEMES.includes(saved)) ? saved : detectSystemTheme();
+  applyTheme(initial);
+
+  const btn = document.createElement('button');
+  btn.id = 'theme-toggle';
+  btn.className = 'theme-toggle';
+  btn.type = 'button';
+  btn.setAttribute('aria-label', '切換主題');
+  btn.textContent = '•';
+  btn.addEventListener('click', () => {
+    const curr = currentTheme();
+    const nxt = THEMES[(THEMES.indexOf(curr) + 1) % THEMES.length];
+    applyTheme(nxt); saveTheme(nxt);
+  });
+  document.body.appendChild(btn);
+
+  if (!saved && window.matchMedia) {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', e => {
+      const sys = e.matches ? 'nightpink' : 'light';
+      applyTheme(sys); saveTheme(sys);
+    });
+  }
+}
+
+/* =========================================================
+   ENTRY FLOW
+   ========================================================= */
+async function entryInit() {
   initThemeToggle();
-  initBlocks();
-  initLightbox();
-  initQuizLock();
-});
+  initAuthGateUI();
+
+  // If card page & RR TTL valid -> skip gate & resume
+  if (rrAuthValid() && await rrResumeFromStored()) {
+    hideAuthGate();
+    await chooseRR();
+    return;
+  }
+
+  // If guest previously selected (or TTL valid guest), auto guest
+  if (getAuthMode() === 'guest' && Date.now() < getAuthExp()) {
+    hideAuthGate();
+    await chooseGuest();
+    return;
+  }
+
+  // else show gate UI; wait user choice
+  // guest choose triggers chooseGuest(); rr choose triggers chooseRR() after submit
+}
+
+/* =========================================================
+   DOM READY
+   ========================================================= */
+document.addEventListener('DOMContentLoaded', entryInit);
