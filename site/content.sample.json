@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "version": 1,
+    "lock_duration_minutes": 15
+  },
+  "sections": [
+    {
+      "id": "sample-intro",
+      "locked": false,
+      "title": "這是示範章節",
+      "paragraphs": [
+        "此站點是範例框架，示範如何以 JSON 動態生成『文字 + 圖片 + 答題鎖』內容。",
+        "在 Production 環境時，這些假資料會被私密內容取代。"
+      ],
+      "image": {
+        "thumb": "assets/img/sample-1.jpg",
+        "full": "assets/img/sample-1.jpg",
+        "alt": "範例圖片"
+      }
+    },
+    {
+      "id": "sample-locked",
+      "locked": true,
+      "title": "答題解鎖示範",
+      "paragraphs": [
+        "這個區塊預設鎖住。點擊後彈出題目，答對即解鎖。",
+        "你可以在 content.json 中設定 quiz 題目、選項與答案索引。"
+      ],
+      "image": {
+        "thumb": "assets/img/sample-2.jpg",
+        "full": "assets/img/sample-2.jpg",
+        "alt": "範例圖片二"
+      },
+      "quiz": {
+        "question": "範例題：這個專案的目的？",
+        "options": ["測試", "教學模板", "隨便", "不告訴你"],
+        "answer_index": 1
+      }
+    }
+  ]
+}

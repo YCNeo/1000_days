@@ -1,0 +1,43 @@
+name: Demo Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout public repo
+        uses: actions/checkout@v4
+
+      - name: Privacy guard
+        run: bash scripts/check-no-private.sh
+
+      - name: Prepare demo content
+        run: |
+          cp site/content.sample.json site/content.json
+          cp site/card.sample.html site/card.html
+          mkdir -p site/assets/img
+          # ensure at least one sample image exists; you provide your own
+          # touch site/assets/img/sample-1.jpg
+          # touch site/assets/img/sample-2.jpg
+          ls -R site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: demo
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # only deploy on push, not PR
+    steps:
+      - uses: actions/deploy-pages@v4

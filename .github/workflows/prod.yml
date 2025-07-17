@@ -1,0 +1,55 @@
+name: Production Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: prod-pages
+  cancel-in-progress: false
+
+jobs:
+  build-prod:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://1000days.neoycn.xyz
+    steps:
+      - name: Checkout public repo
+        uses: actions/checkout@v4
+
+      - name: Checkout private content repo
+        uses: actions/checkout@v4
+        with:
+          repository: YCNeo/1000-days-private-content
+          token: ${{ secrets.PRIVATE_CONTENT_PAT }}
+          path: private-content
+
+      - name: Inject private content
+        run: |
+          set -e
+          cp private-content/content.json site/content.json
+          cp private-content/card.html site/card.html
+          mkdir -p site/assets/img
+          rsync -av --delete private-content/assets/img/ site/assets/img/
+          # create CNAME for custom domain
+          echo "1000days.neoycn.xyz" > site/CNAME
+          ls -R site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy-prod:
+    needs: build-prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4

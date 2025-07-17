@@ -1,0 +1,37 @@
+# Node / build tooling (future-proof)
+node_modules/
+dist/
+build/
+.tmp/
+.cache/
+
+# macOS / OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# --- PRIVACY GUARD -------------------------------------------------
+# Never commit *real* content or private images to the public repo.
+# Real files live in the PRIVATE CONTENT REPO and are injected at deploy time.
+
+# content.json is generated (sample -> prod injection)
+site/content.json
+
+# card.html gets injected for prod
+# keep sample version tracked (card.sample.html)
+# we ignore card.html to prevent leaking real love note
+site/card.html
+
+# Private images: ignore all by default, allow sample
+site/assets/img/*
+!site/assets/img/sample-*.jpg
+!site/assets/img/.gitkeep
+
+# If you want to ship a generic placeholder image:
+# !site/assets/img/placeholder.jpg
+
+# -------------------------------------------------------------------
