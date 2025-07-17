@@ -35,29 +35,33 @@ jobs:
           token: ${{ secrets.PRIVATE_CONTENT_PAT }}
           path: private-content
 
-      - name: Inject private content
-        shell: bash
+      - name: Install Node (for encryption build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build encrypted RR payload
+        env:
+          PRIVATE_DIR: private-content
+          PUBLIC_SITE_DIR: site
+          PBKDF2_ITER: 250000
         run: |
-          set -euo pipefail
-          cp private-content/content.json site/content.json
-          cp private-content/card.html    site/card.html
-          mkdir -p site/assets/img
-          rsync -av --delete private-content/assets/img/ site/assets/img/
+          node .github/scripts/build-private-payload.mjs
+
+      - name: Prepare site (card stub + sample content stays)
+        run: |
+          # safe stub card (public version) copied to runtime card.html
+          cp site/card.sample.html site/card.html
+          # sample content remains for guest mode -> copy to content.sample.json if missing
+          test -f site/content.sample.json || echo '{"meta":{"version":1},"sections":[]}' > site/content.sample.json
+          # CNAME
           echo "1000days.neoycn.xyz" > site/CNAME
           ls -R site
 
-      - name: Post-injection sanity check
-        shell: bash
+      - name: Post-build sanity check
         run: |
-          set -euo pipefail
-          echo "[prod-check] verifying injected content..."
-          test -f site/content.json || { echo "::error::content.json missing after injection"; exit 1; }
-          test -f site/card.html    || { echo "::error::card.html missing after injection"; exit 1; }
-          # detect if still using sample images (all filenames start with sample-)
-          if ls site/assets/img | grep -q '^sample-'; then
-            echo "::warning::Sample images still present in production build. Did private assets sync correctly?"
-          fi
-          echo "[prod-check] done."
+          test -f site/private.enc.json || (echo "::error::private.enc.json missing"; exit 1)
+          test -f site/card.html || (echo "::error::card.html missing"; exit 1)
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

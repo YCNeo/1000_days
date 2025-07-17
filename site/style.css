@@ -451,3 +451,56 @@ body.quiz-open .theme-toggle {
   font-size: 0.9rem;
   text-decoration: underline;
 }
+
+/* === AUTH GATE =================================================== */
+.auth-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+.auth-gate-card {
+  width: min(90vw, 420px);
+  background: var(--bg-card);
+  color: var(--text);
+  padding: 2rem 1.5rem;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 4px 24px var(--shadow);
+}
+.auth-gate-card h2 {
+  margin-top: 0;
+  color: var(--accent);
+  font-size: 1.25rem;
+}
+.auth-gate-card select,
+.auth-gate-card input {
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+.auth-gate-card button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.auth-gate-msg {
+  min-height: 1.25em;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
