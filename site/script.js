@@ -1,35 +1,40 @@
 /* =========================================================
+   1000 DAYS SITE SCRIPT
+   with YouTube crossfade + auto-mute heuristics (v3.2)
+   ========================================================= */
+
+/* ---------- DEBUG SWITCH ---------- */
+const DEBUG_BGM = false;
+function logDebug(...args) { if (DEBUG_BGM) console.log('[BGM]', ...args); }
+
+/* =========================================================
    CONFIG
    ========================================================= */
 const THEMES = ['light', 'nightpink', 'starry', 'candle'];
 const THEME_KEY = 'theme-v3';
-const MUSIC_MUTE_KEY = 'bgm-muted'; // persist user mute pref
-const MUSIC_AUTO_STATE_KEY = 'bgm-auto-state'; // track last auto-mute cause
-
-// Crossfade tuning
-const DEFAULT_VOL = 30;        // 0-100 YT volume
-const CROSSFADE_OUT_MS = 600;  // ms
-const CROSSFADE_IN_MS = 1200; // ms
-
-// Unlock TTL default (overridden by content.json)
+const MUSIC_MUTE_KEY = 'bgm-muted';
+const MUSIC_AUTO_STATE_KEY = 'bgm-auto-state';
+const DEFAULT_VOL = 30;
+const CROSSFADE_OUT_MS = 600;
+const CROSSFADE_IN_MS = 1200;
 let LOCK_DURATION_MS = 15 * 60 * 1000;
 
 /* =========================================================
    RUNTIME STATE
    ========================================================= */
 let CONTENT = null;
-let MUSIC_MAP = {};       // theme -> yt id/url
+let MUSIC_MAP = {};
 let ytApiLoaded = false;
 let ytReady = false;
 let ytPlayer = null;
 let pendingThemeOnYTReady = null;
 
-let userInteracted = false; // first real interaction → auto unmute fade
-let userMuted = false;      // explicit user mute toggle
-let autoMuted = false;      // auto heuristic mute
-let musicBtn = null;        // UI btn
+let userInteracted = false; // first pointer/scroll/key -> allow audio fade in
+let userMuted = false;      // explicit user action
+let autoMuted = false;      // auto heuristic (visibility hidden)
+let musicBtn = null;        // mute btn
 
-// quiz globals
+/* quiz globals */
 const QUIZ_DATA = {};
 let quizOverlay = null, qEl, optsWrap, msgEl, cancelBtn, retakeBtn;
 let currentId = null, currentSection = null;
@@ -46,13 +51,12 @@ function currentTheme() {
 }
 function saveTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) { } }
 function getSavedTheme() { try { return localStorage.getItem(THEME_KEY); } catch (_) { return null; } }
-
 function saveUserMute(v) { try { localStorage.setItem(MUSIC_MUTE_KEY, v ? '1' : '0'); } catch (_) { } }
 function getSavedUserMute() { try { return localStorage.getItem(MUSIC_MUTE_KEY) === '1'; } catch (_) { return false; } }
 function saveAutoMuteState(v) { try { localStorage.setItem(MUSIC_AUTO_STATE_KEY, v ? '1' : '0'); } catch (_) { } }
 function getSavedAutoMuteState() { try { return localStorage.getItem(MUSIC_AUTO_STATE_KEY) === '1'; } catch (_) { return false; } }
 
-/* ---- parse YT id from mapping value ---- */
+/* parse YouTube id */
 function parseYouTubeId(val) {
   if (!val) return null;
   if (val.startsWith('yt:')) return val.slice(3);
@@ -117,7 +121,6 @@ function buildSectionsFromContent() {
     el.appendChild(textDiv);
     el.appendChild(imgDiv);
 
-    // review button (visible when unlocked)
     const reviewBtn = document.createElement('button');
     reviewBtn.type = 'button';
     reviewBtn.className = 'quiz-review-btn';
@@ -125,7 +128,7 @@ function buildSectionsFromContent() {
     reviewBtn.textContent = '?';
     reviewBtn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
-      openQuiz(el, /*review*/true);
+      openQuiz(el, true);
     });
     el.appendChild(reviewBtn);
 
@@ -134,7 +137,7 @@ function buildSectionsFromContent() {
 }
 
 /* =========================================================
-   THEME TOGGLE UI (minimal dot)
+   THEME TOGGLE
    ========================================================= */
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -188,7 +191,7 @@ function ensureYTApi() {
   document.body.appendChild(wrap);
 }
 
-/* YT callback */
+/* YT global callback */
 window.onYouTubeIframeAPIReady = function () {
   ytReady = true;
   createYTPlayer(themeVideoId(currentTheme()));
@@ -217,35 +220,45 @@ function createYTPlayer(videoId) {
     },
     events: {
       'onReady': onYTReady,
-      'onStateChange': onYTStateChange
+      'onStateChange': onYTStateChange,
+      'onError': onYTError
     }
   });
 }
 function onYTReady() {
+  logDebug('YT ready');
   try { ytPlayer.playVideo(); } catch (_) { }
-  // apply saved mute
   userMuted = getSavedUserMute();
   autoMuted = getSavedAutoMuteState();
   updateMusicMuteUI();
-  applyEffectiveMuteState(); // set actual player mute state
+  applyEffectiveMuteState();
 }
-function onYTStateChange(/*e*/) { /* no-op */ }
+function onYTStateChange(e) {
+  logDebug('YT state', e.data);
+  // If ENDED (0) and loop param fails, replay manually
+  if (e.data === YT.PlayerState.ENDED) {
+    try { ytPlayer.playVideo(); } catch (_) { }
+  }
+}
+function onYTError(e) {
+  console.error('YT error', e?.data);
+  // e.data: 2,5,100,101,150 etc.
+  // If error on current video, try fallback to light theme track
+  if (currentTheme() !== 'light') {
+    console.warn('Falling back to light theme track due to YT error.');
+    crossfadeToTheme('light');
+  }
+}
 
 /* ---- Volume helpers ---- */
 function setYTVolume(v) {
   if (!ytPlayer) return;
   try { ytPlayer.setVolume(v); } catch (_) { }
 }
-function mutePlayer() {
-  if (!ytPlayer) return;
-  try { ytPlayer.mute(); } catch (_) { }
-}
-function unmutePlayer() {
-  if (!ytPlayer) return;
-  try { ytPlayer.unMute(); } catch (_) { }
-}
+function mutePlayer() { if (!ytPlayer) return; try { ytPlayer.mute(); } catch (_) { } }
+function unmutePlayer() { if (!ytPlayer) return; try { ytPlayer.unMute(); } catch (_) { } }
 
-/* Fade volume to target over duration; returns Promise */
+/* Fade with rAF, Promise */
 function fadeYTVolumeTo(target, duration = 500) {
   return new Promise(res => {
     if (!ytPlayer) { res(); return; }
@@ -269,21 +282,25 @@ function fadeYTVolumeTo(target, duration = 500) {
   });
 }
 
-/* Wait until YT reports PLAYING */
-function waitForYTPlaying() {
+/* Wait until PLAYING (with timeout) */
+function waitForYTPlaying(timeout = 3000) {
   return new Promise(res => {
-    if (!ytPlayer) { res(); return; }
+    if (!ytPlayer) { res(false); return; }
+    const start = Date.now();
     const check = () => {
       try {
-        if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) { res(); return; }
+        if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+          res(true); return;
+        }
       } catch (_) { }
+      if (Date.now() - start > timeout) { res(false); return; }
       setTimeout(check, 100);
     };
     check();
   });
 }
 
-/* Crossfade to new theme track */
+/* Crossfade to theme track */
 async function crossfadeToTheme(theme) {
   const vid = themeVideoId(theme);
   if (!ytReady || !ytPlayer) {
@@ -292,69 +309,84 @@ async function crossfadeToTheme(theme) {
   }
   const curId = ytPlayer.getVideoData()?.video_id;
   if (curId === vid) {
-    // ensure loop playlist uses new loop param
+    // Already on this video; just ensure volume state correct
+    if (!isEffectivelyMuted() && userInteracted) {
+      fadeYTVolumeTo(DEFAULT_VOL, 300);
+    }
     return;
   }
-  // if effective muted just swap silently
-  if (isEffectivelyMuted()) {
-    mutePlayer();
-    ytPlayer.loadVideoById({ videoId: vid, startSeconds: 0, suggestedQuality: 'small' });
-    return;
+
+  const wasMuted = isEffectivelyMuted();
+  logDebug('crossfade', { from: curId, to: vid, wasMuted, userInteracted });
+
+  // fade out current if we were audible
+  if (!wasMuted && userInteracted) {
+    await fadeYTVolumeTo(0, CROSSFADE_OUT_MS);
+  } else {
+    mutePlayer(); setYTVolume(0);
   }
-  // fade out current
-  await fadeYTVolumeTo(0, CROSSFADE_OUT_MS);
-  // load new (start muted)
+
+  // load new video
   ytPlayer.loadVideoById({ videoId: vid, startSeconds: 0, suggestedQuality: 'small' });
-  mutePlayer();
-  setYTVolume(0);
-  // wait ready & playing
-  await waitForYTPlaying();
-  // fade in
+  // refresh loop param (YT quirk: need to call again via playlist)
+  try {
+    // cheat: call cuePlaylist then play
+    ytPlayer.cuePlaylist([vid]);
+    ytPlayer.setLoop?.(true);
+    ytPlayer.playVideo();
+  } catch (_) { }
+
+  // if we should stay muted (user/auto or no interaction yet) just stop here
+  if (wasMuted || !userInteracted) {
+    mutePlayer(); setYTVolume(0);
+    return;
+  }
+
+  // wait for playing; if timeout, still try fade in
+  const ok = await waitForYTPlaying(4000);
+  if (!ok) logDebug('waitForYTPlaying timeout; forcing fade in');
+
   unmutePlayer();
   await fadeYTVolumeTo(DEFAULT_VOL, CROSSFADE_IN_MS);
 }
 
-/* Determine effective mute (user OR auto) */
+/* effective mute = user OR auto */
 function isEffectivelyMuted() { return userMuted || autoMuted; }
-
-/* Apply to player */
 function applyEffectiveMuteState() {
   if (isEffectivelyMuted()) {
-    mutePlayer();
-    setYTVolume(0);
+    mutePlayer(); setYTVolume(0);
   } else {
-    unmutePlayer();
-    setYTVolume(DEFAULT_VOL);
+    unmutePlayer(); setYTVolume(DEFAULT_VOL);
   }
   updateMusicMuteUI();
 }
 
-/* Manual toggle from button */
+/* manual mute toggle */
 function toggleMusicMute() {
   userMuted = !userMuted;
   saveUserMute(userMuted);
   applyEffectiveMuteState();
 }
 
-/* update button UI glyph */
+/* update mute btn glyph */
 function updateMusicMuteUI() {
   if (!musicBtn) return;
   musicBtn.dataset.icon = isEffectivelyMuted() ? '🔇' : '🔈';
 }
 
-/* Auto-unmute after first user interaction (policy unlock) */
+/* one-time unmute after first interaction (autoplay unlock) */
 function setupAutoUnmuteAfterInteraction() {
   const handler = () => {
     if (userInteracted) return;
     userInteracted = true;
-    // If not muted (user or auto), fade up
+    logDebug('first interaction');
     if (!isEffectivelyMuted()) {
       unmutePlayer();
       fadeYTVolumeTo(DEFAULT_VOL, 500);
     }
-    removeInteractionListeners();
+    cleanup();
   };
-  function removeInteractionListeners() {
+  function cleanup() {
     window.removeEventListener('pointerdown', handler);
     window.removeEventListener('keydown', handler);
     window.removeEventListener('scroll', handler);
@@ -366,43 +398,34 @@ function setupAutoUnmuteAfterInteraction() {
   window.addEventListener('touchstart', handler, { once: false, passive: true });
 }
 
-/* Auto-mute heuristics (mobile friendly)
-   - visibilitychange -> hidden: auto mute (record autoMuted)
-   - visibilitychange -> visible: if autoMuted==true && userMuted==false => unmute fade
-   - blur/pagehide -> auto mute
-   Rationale: 使用者切 app、鎖螢幕、或離開時通常不想持續播放音樂。
-*/
+/* conservative auto-mute heuristics (no blur; reduces誤觸) */
 function setupAutoMuteHeuristics() {
-  autoMuted = getSavedAutoMuteState(); // restore
+  autoMuted = getSavedAutoMuteState();
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       autoMuted = true;
       saveAutoMuteState(true);
       applyEffectiveMuteState();
     } else {
-      // visible again
       if (autoMuted && !userMuted) {
         autoMuted = false;
         saveAutoMuteState(false);
-        // fade in (if policy unlocked)
+        // fade in only after interaction unlock
         if (userInteracted) {
           unmutePlayer();
           fadeYTVolumeTo(DEFAULT_VOL, CROSSFADE_IN_MS);
+        } else {
+          applyEffectiveMuteState();
         }
-      } else {
-        applyEffectiveMuteState();
       }
     }
   });
   window.addEventListener('pagehide', () => {
     autoMuted = true; saveAutoMuteState(true); applyEffectiveMuteState();
   });
-  window.addEventListener('blur', () => {
-    autoMuted = true; saveAutoMuteState(true); applyEffectiveMuteState();
-  });
 }
 
-/* Music mute button */
+/* mute button UI */
 function initMusicButton() {
   musicBtn = document.createElement('button');
   musicBtn.type = 'button';
@@ -413,9 +436,9 @@ function initMusicButton() {
     toggleMusicMute();
   });
   document.body.appendChild(musicBtn);
-  // restore from storage
+  // restore saved states
   userMuted = getSavedUserMute();
-  autoMuted = getSavedAutoMuteState(); // might be true if prior hidden
+  autoMuted = getSavedAutoMuteState();
   updateMusicMuteUI();
 }
 
@@ -594,7 +617,6 @@ function initQuizLock() {
     }, true);
   });
 
-  // refresh TTL with activity
   ['click', 'scroll', 'keydown', 'touchstart', 'visibilitychange', 'focus'].forEach(ev => {
     window.addEventListener(ev, () => {
       sections.forEach(sec => {
@@ -605,7 +627,7 @@ function initQuizLock() {
 }
 
 /* =========================================================
-   LIGHTBOX (respect lock)
+   LIGHTBOX
    ========================================================= */
 function initLightbox() {
   const overlay = document.createElement('div');
@@ -690,9 +712,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLightbox();
   initQuizLock();
 
-  // Music controls & playback
   initMusicButton();
-  ensureYTApi();                // loads YT API & creates player
-  setupAutoUnmuteAfterInteraction(); // to satisfy autoplay policy
-  setupAutoMuteHeuristics();    // visibility/blur auto mute
+  ensureYTApi();
+  setupAutoUnmuteAfterInteraction();
+  setupAutoMuteHeuristics();
 });
