@@ -546,72 +546,100 @@ body.auth-open {
   overflow: hidden;
 }
 
-/* CARD FAB */
-.card-fab {
-  position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 3800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  text-decoration: none;
-  font-size: 1.5rem;
-  line-height: 1;
-  box-shadow: 0 4px 16px var(--shadow);
-  transition: transform 0.1s ease, opacity 0.2s ease;
-}
-.card-fab:active {
-  transform: scale(0.9);
-}
-@media (min-width: 768px) {
-  .card-fab {
-    bottom: 2rem;
-    right: 2rem;
-  }
+/* =========================================================
+   FAB CLUSTER (right-bottom)
+   card-fab sits above scroll-toggle
+   ========================================================= */
+:root {
+  --fab-size: 3rem;
+  --fab-gap: 0.75rem;
 }
 
-/* =========================================================
-   Scroll Toggle (chevron)
-   ========================================================= */
+/* 共用基底 */
+.card-fab,
 .scroll-toggle {
   position: fixed;
-  left: 50%;
-  bottom: 1.25rem;
-  transform: translateX(-50%);
+  right: 1rem;
   z-index: 3700;
-  width: 3rem;
-  height: 3rem;
+  width: var(--fab-size);
+  height: var(--fab-size);
   border-radius: 50%;
-  border: none;
+  border: 2px solid rgba(255, 255, 255, 0.85);
   background: var(--accent);
   box-shadow: 0 4px 16px var(--shadow);
   cursor: pointer;
   transition: transform 0.15s ease, background 0.2s;
 }
-.scroll-toggle::before {
-  content: "";
-  display: block;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-right: 2px solid #fff;
-  border-bottom: 2px solid #fff;
-  transform: rotate(45deg);
-  margin: auto;
-  margin-top: 0.9rem;
-}
-.scroll-toggle:active {
-  transform: translateX(-50%) scale(0.9);
+@media (min-width: 768px) {
+  .card-fab,
+  .scroll-toggle {
+    right: 2rem;
+  }
 }
 
-body.scroll-bottom .scroll-toggle {
-  bottom: 1.5rem;
+/* 上方愛心 */
+.card-fab {
+  bottom: calc(1rem + var(--fab-size) + var(--fab-gap));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
+@media (min-width: 768px) {
+  .card-fab {
+    bottom: calc(2rem + var(--fab-size) + var(--fab-gap));
+  }
+}
+/* 心圖示 (CSS畫) */
+.card-fab::before {
+  content: "";
+  width: 1.15rem;
+  height: 1.15rem;
+  background: radial-gradient(circle at 30% 30%, #fff 0 40%, transparent 41%) 0
+      0/50% 100%,
+    radial-gradient(circle at 70% 30%, #fff 0 40%, transparent 41%) 100% 0/50%
+      100%,
+    linear-gradient(#fff 0 0) 50% 70%/70% 60%;
+  background-repeat: no-repeat;
+  transform: translateY(-5%) rotate(-45deg);
+  display: block;
+}
+.card-fab:hover {
+  transform: scale(1.05);
+}
+.card-fab:active {
+  transform: scale(0.92);
+}
+
+/* 下方捲動鍵 */
+.scroll-toggle {
+  bottom: 1rem;
+  background: var(--accent);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+@media (min-width: 768px) {
+  .scroll-toggle {
+    bottom: 2rem;
+  }
+}
+/* Chevron 中心置中 */
+.scroll-toggle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px; /* center */
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(45deg); /* pointing down */
+}
+.scroll-toggle:active {
+  transform: scale(0.92);
+}
+
+/* 到底部時翻向上 */
 body.scroll-bottom .scroll-toggle::before {
-  transform: rotate(-135deg); /* 180° flip chevron */
+  transform: rotate(-135deg); /* pointing up */
 }

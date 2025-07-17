@@ -328,7 +328,7 @@ async function chooseGuest() {
   const heroDescEl = $('#hero-desc');
   if (heroDescEl) heroDescEl.textContent = HERO_DESC_GUEST;
 
-  const footerP = document.querySelector('footer p');
+  const footerP = $('#footer-desc') || document.querySelector('footer p');
   if (footerP) footerP.textContent = FOOTER_DESC_GUEST;
 }
 
@@ -374,7 +374,7 @@ async function chooseRR() {
   const heroDescEl = $('#hero-desc');
   if (heroDescEl) heroDescEl.textContent = HERO_DESC_RR;
 
-  const footerP = document.querySelector('footer p');
+  const footerP = $('#footer-desc') || document.querySelector('footer p');
   if (footerP) footerP.textContent = FOOTER_DESC_RR;
 }
 
@@ -752,18 +752,26 @@ function initScrollToggle() {
   const btn = document.getElementById('scroll-toggle');
   if (!btn) return;
 
-  function updateDir() {
-    const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
-    document.body.classList.toggle('scroll-bottom', atBottom);
+  function isAtBottom() {
+    // allow 2px fudge
+    return (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
+  }
+  function updateState() {
+    const bottom = isAtBottom();
+    document.body.classList.toggle('scroll-bottom', bottom);
+    btn.setAttribute('aria-label', bottom ? '回到最上面' : '跳到底部');
   }
   btn.addEventListener('click', () => {
-    const atBottom = document.body.classList.contains('scroll-bottom');
-    const target = atBottom ? 0 : document.body.scrollHeight;
-    window.scrollTo({ top: target, behavior: 'smooth' });
+    if (isAtBottom()) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    }
   });
-  window.addEventListener('scroll', updateDir, { passive: true });
-  updateDir(); // 初始判斷
+  window.addEventListener('scroll', updateState, { passive: true });
+  updateState();
 }
+
 
 
 /* =========================================================
