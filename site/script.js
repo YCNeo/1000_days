@@ -337,8 +337,6 @@ async function chooseRR() {
   }
   CURRENT_MODE = 'rr';
   const { content, card_html, images } = RR_PAYLOAD;
-  $('#hero-desc').textContent = HERO_DESC_RR;
-  document.querySelector('footer p').textContent = FOOTER_DESC_RR;
 
   // update global lock duration from payload meta
   const min = parseInt(content?.meta?.lock_duration_minutes, 10);
@@ -361,6 +359,8 @@ async function chooseRR() {
     initBlocks();
     initLightbox();
     initQuizLock();
+    $('#hero-desc').textContent = HERO_DESC_RR;
+    document.querySelector('footer p').textContent = FOOTER_DESC_RR;
   }
 }
 
