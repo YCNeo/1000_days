@@ -712,8 +712,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLightbox();
   initQuizLock();
 
-  initMusicButton();
-  ensureYTApi();
-  setupAutoUnmuteAfterInteraction();
-  setupAutoMuteHeuristics();
+  // initMusicButton();
+  // ensureYTApi();
+  // setupAutoUnmuteAfterInteraction();
+  // setupAutoMuteHeuristics();
 });
