@@ -1,5 +1,9 @@
+/* =========================================================
+   THEME VARIABLES
+   Light is default (:root). Additional themes via [data-theme].
+   ========================================================= */
 :root {
-  /* Light theme vars */
+  /* Light theme vars (原本樣式) */
   --bg: #ffffff;
   --bg-hero: #fff5f7;
   --bg-card: #fff5f7;
@@ -11,8 +15,8 @@
   --shadow: rgba(0, 0, 0, 0.1);
 }
 
-/* ==== Dark Theme: 柔和夜幕粉 ==== */
-[data-theme="dark"] {
+/* ==== Dark Theme A: 柔和夜幕粉 ==== */
+[data-theme="nightpink"] {
   --bg: #0f0d11;
   --bg-hero: linear-gradient(160deg, #2b1226 0%, #0f0d11 100%);
   --bg-card: #1d1620;
@@ -24,6 +28,46 @@
   --shadow: rgba(0, 0, 0, 0.85);
 }
 
+/* ==== Dark Theme B: 星空奶油粉 ==== */
+[data-theme="starry"] {
+  --bg: #0b0c1c;
+  /* 疊加微星空：小淡粉/白星點 + 深藍漸層 */
+  --bg-hero: radial-gradient(
+      circle at 20% 30%,
+      rgba(255, 158, 222, 0.15) 0 200px,
+      transparent 200px
+    ),
+    radial-gradient(
+      circle at 80% 10%,
+      rgba(255, 255, 255, 0.15) 0 150px,
+      transparent 150px
+    ),
+    linear-gradient(180deg, #1c2245 0%, #0b0c1c 100%);
+  --bg-card: #1a1e33;
+  --text: #f0f2ff;
+  --text-muted: #c2c5ff;
+  --accent: #ff9ede;
+  --footer-bg: #1a1e33;
+  --overlay-bg: rgba(0, 0, 0, 0.9);
+  --shadow: rgba(0, 0, 0, 0.8);
+}
+
+/* ==== Dark Theme C: 暖燭光 ==== */
+[data-theme="candle"] {
+  --bg: #1b140f;
+  --bg-hero: linear-gradient(160deg, #382415 0%, #1b140f 100%);
+  --bg-card: #2b1c12;
+  --text: #fff8e7;
+  --text-muted: #e1d5c2;
+  --accent: #ffb86c;
+  --footer-bg: #2b1c12;
+  --overlay-bg: rgba(0, 0, 0, 0.9);
+  --shadow: rgba(0, 0, 0, 0.9);
+}
+
+/* =========================================================
+   BASE ELEMENTS
+   ========================================================= */
 * {
   box-sizing: border-box;
 }
@@ -223,7 +267,7 @@ footer {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 1500; /* lower than lightbox */
+  z-index: 1500; /* Lightbox overlay=2000; keep below */
   background: var(--accent);
   color: #fff;
   border: none;

@@ -1,58 +1,75 @@
-// Theme utils ----------------------------------------------------
-const THEME_KEY = 'theme-v1';
+/* =========================================================
+   Multi-theme toggle (Light + 3 Dark variants)
+   - Cycle: light → nightpink → starry → candle → light ...
+   - Saves in localStorage (THEME_KEY)
+   - Default: system dark? nightpink : light
+   ========================================================= */
+const THEME_KEY = 'theme-v3';
+const THEMES = ['light', 'nightpink', 'starry', 'candle'];
 
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
 }
-
 function saveTheme(theme) {
   try { localStorage.setItem(THEME_KEY, theme); } catch (_) { }
 }
-
 function getSavedTheme() {
   try { return localStorage.getItem(THEME_KEY); } catch (_) { return null; }
 }
-
 function detectSystemTheme() {
   return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark' : 'light';
+    ? 'nightpink'  // 若系統深色，給使用者最柔和的深色預設
+    : 'light';
 }
-
+function iconFor(theme) {
+  switch (theme) {
+    case 'light': return '☀️';
+    case 'nightpink': return '🌙';
+    case 'starry': return '🌌';
+    case 'candle': return '🕯️';
+    default: return '🌙';
+  }
+}
+function nextTheme(curr) {
+  const idx = THEMES.indexOf(curr);
+  return THEMES[(idx + 1) % THEMES.length];
+}
 function initThemeToggle() {
   const saved = getSavedTheme();
-  const initial = saved || detectSystemTheme();
+  const initial = (saved && THEMES.includes(saved)) ? saved : detectSystemTheme();
   applyTheme(initial);
 
-  // create button
   const btn = document.createElement('button');
   btn.id = 'theme-toggle';
   btn.className = 'theme-toggle';
   btn.type = 'button';
-  btn.setAttribute('aria-label', '切換深淺模式 (Dark / Light)');
-  const updateIcon = (t) => { btn.textContent = t === 'dark' ? '☀️' : '🌙'; };
-  updateIcon(initial);
+  btn.setAttribute('aria-label', '切換主題');
+  btn.textContent = iconFor(initial);
 
   btn.addEventListener('click', () => {
-    const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-    const next = current === 'dark' ? 'light' : 'dark';
+    const curr = document.documentElement.getAttribute('data-theme') || initial;
+    const next = nextTheme(curr);
     applyTheme(next);
     saveTheme(next);
-    updateIcon(next);
+    btn.textContent = iconFor(next);
   });
 
   document.body.appendChild(btn);
 
-  // Update icon if system changes *and* user never manually saved
+  // 如需同步系統深/淺（僅在未手動選時）
   if (!saved && window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      const sys = e.matches ? 'dark' : 'light';
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', (e) => {
+      const sys = e.matches ? 'nightpink' : 'light';
       applyTheme(sys);
-      updateIcon(sys);
+      btn.textContent = iconFor(sys);
     });
   }
 }
 
-// Lightbox utils ----------------------------------------------------
+/* =========================================================
+   Lightbox (mobile safe)
+   ========================================================= */
 function initLightbox() {
   const overlay = document.createElement('div');
   overlay.className = 'lightbox-overlay';
@@ -75,7 +92,7 @@ function initLightbox() {
     const heading = section?.querySelector('h2')?.textContent?.trim();
     overlayCaption.textContent = heading || imgEl.alt || '';
     overlay.classList.add('open');
-    document.body.classList.add('lightbox-open');   // ✅ hide theme toggle
+    document.body.classList.add('lightbox-open');   // hide theme toggle
     document.body.style.overflow = 'hidden';
     closeBtn.focus();
   }
@@ -84,11 +101,11 @@ function initLightbox() {
     overlay.classList.remove('open');
     overlayImg.src = '';
     overlayCaption.textContent = '';
-    document.body.classList.remove('lightbox-open'); // ✅ restore theme toggle
+    document.body.classList.remove('lightbox-open'); // show theme toggle
     document.body.style.overflow = '';
   }
 
-  // mobile-safe click delegation
+  // click delegation
   document.body.addEventListener('click', (e) => {
     const wrapper = e.target.closest('.image');
     if (!wrapper) return;
@@ -109,7 +126,9 @@ function initLightbox() {
   });
 }
 
-// Desktop alt layout & reveal ---------------------------------------
+/* =========================================================
+   Desktop alt layout & reveal
+   ========================================================= */
 function initBlocks() {
   const blocks = Array.from(document.querySelectorAll('main .block'));
   if (!blocks.length) return;
@@ -132,7 +151,9 @@ function initBlocks() {
   blocks.forEach(el => io.observe(el));
 }
 
-// DOM ready ---------------------------------------------------------
+/* =========================================================
+   DOM ready
+   ========================================================= */
 document.addEventListener('DOMContentLoaded', () => {
   initThemeToggle();
   initBlocks();
