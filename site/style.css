@@ -30,7 +30,6 @@
   --overlay-bg: rgba(0, 0, 0, 0.9);
   --shadow: rgba(0, 0, 0, 0.85);
 
-  /* 可改為愛心鎖 SVG */
   --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M16 4c-3.3 0-6 2.7-6 6v3H7v15h18V13h-3v-3c0-3.3-2.7-6-6-6Zm-4 6c0-2.2 1.8-4 4-4s4 1.8 4 4v3h-8v-3Zm4 6c1.1 0 2 .9 2 2v4h-4v-4c0-1.1.9-2 2-2Z'/%3E%3C/svg%3E");
   --unlock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M23 13v-3a7 7 0 0 0-13.41-2.54l1.84.78A5 5 0 0 1 21 10v3h-2H9v15h18V13h-4Zm-7 4c1.1 0 2 .9 2 2v4h-4v-4c0-1.1.9-2 2-2Z'/%3E%3C/svg%3E");
 }
@@ -57,7 +56,6 @@
   --overlay-bg: rgba(0, 0, 0, 0.9);
   --shadow: rgba(0, 0, 0, 0.8);
 
-  /* 星形鎖 */
   --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M16 2 13 10H5l6.5 5L9 24l7-4 7 4-2.5-9L27 10h-8l-3-8Zm-2 15h4v5h-4v-5Z'/%3E%3C/svg%3E");
   --unlock-icon: var(--lock-icon);
 }
@@ -74,13 +72,12 @@
   --overlay-bg: rgba(0, 0, 0, 0.9);
   --shadow: rgba(0, 0, 0, 0.9);
 
-  /* 燭火鎖 */
   --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23fff' d='M16 2c0 3-3 4-3 7s3 5 3 5 3-2 3-5-3-4-3-7Zm-7 13v15h14V15H9Zm7 3c1.1 0 2 .9 2 2v4h-4v-4c0-1.1.9-2 2-2Z'/%3E%3C/svg%3E");
   --unlock-icon: var(--lock-icon);
 }
 
 /* =========================================================
-   BASE ELEMENTS
+   BASE
    ========================================================= */
 * {
   box-sizing: border-box;
@@ -272,7 +269,7 @@ footer {
   padding: 0 1rem;
 }
 
-/* === Theme toggle === */
+/* === Theme toggle (dot) === */
 .theme-toggle {
   position: fixed;
   top: 1rem;
@@ -281,44 +278,34 @@ footer {
   background: var(--accent);
   color: #fff;
   border: none;
-  padding: 0.5rem 0.75rem;
+  padding: 0;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 999px;
-  font-size: 1.25rem;
+  font-size: 0;
   line-height: 1;
   cursor: pointer;
   transition: transform 0.1s ease, opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .theme-toggle:active {
   transform: scale(0.95);
 }
-
-/* === Music toggle === */
-.music-toggle {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  z-index: 1490;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 0.5rem;
-  width: 2.5rem;
-  height: 2.5rem;
+.theme-toggle::before {
+  content: "";
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
   border-radius: 50%;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: transform 0.1s ease, opacity 0.15s ease;
-}
-.music-toggle:active {
-  transform: scale(0.95);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) inset;
 }
 
-/* Hide toggles when overlay open */
+/* Hide theme toggle when overlays open */
 body.lightbox-open .theme-toggle,
-body.quiz-open .theme-toggle,
-body.lightbox-open .music-toggle,
-body.quiz-open .music-toggle {
+body.quiz-open .theme-toggle {
   opacity: 0;
   pointer-events: none;
 }
@@ -379,7 +366,7 @@ body.quiz-open .music-toggle {
 }
 .block.locked .quiz-review-btn {
   display: none;
-} /* hide until unlocked */
+} /* locked 隱藏 */
 
 /* === Quiz Modal Overlay ========================================== */
 .quiz-overlay {
@@ -463,39 +450,4 @@ body.quiz-open .music-toggle {
   cursor: pointer;
   font-size: 0.9rem;
   text-decoration: underline;
-}
-
-/* === THEME/MUSIC CONTROL REFINEMENTS ==================== */
-.theme-toggle {
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0; /* hide text */
-}
-.theme-toggle::before {
-  content: "";
-  display: block;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) inset;
-}
-
-.music-toggle {
-  width: 2.5rem;
-  height: 2.5rem;
-  font-size: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-.music-toggle::before {
-  content: attr(data-icon); /* JS sets 🔈 or 🔇 */
-  font-size: 1.25rem;
-  line-height: 1;
 }

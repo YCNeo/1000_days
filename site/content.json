@@ -1,13 +1,7 @@
 {
   "meta": {
-    "version": 3,
-    "lock_duration_minutes": 15,
-    "music": {
-      "light": "yt:ojA8-akwFoA",
-      "nightpink": "yt:b7caaXPJ5zU",
-      "starry": "yt:-YUYLbjl7Sk",
-      "candle": "yt:dWEWQyzXE_g"
-    }
+    "version": 4,
+    "lock_duration_minutes": 15
   },
   "sections": [
     {

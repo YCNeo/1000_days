@@ -1,46 +1,20 @@
 /* =========================================================
-   1000 DAYS SITE SCRIPT
-   with YouTube crossfade + auto-mute heuristics (v3.2)
+   1000 DAYS SITE SCRIPT (No-Music Edition v4)
    ========================================================= */
 
-/* ---------- DEBUG SWITCH ---------- */
-const DEBUG_BGM = false;
-function logDebug(...args) { if (DEBUG_BGM) console.log('[BGM]', ...args); }
-
-/* =========================================================
-   CONFIG
-   ========================================================= */
+/* ----- CONFIG ----- */
 const THEMES = ['light', 'nightpink', 'starry', 'candle'];
-const THEME_KEY = 'theme-v3';
-const MUSIC_MUTE_KEY = 'bgm-muted';
-const MUSIC_AUTO_STATE_KEY = 'bgm-auto-state';
-const DEFAULT_VOL = 30;
-const CROSSFADE_OUT_MS = 600;
-const CROSSFADE_IN_MS = 1200;
-let LOCK_DURATION_MS = 15 * 60 * 1000;
+const THEME_KEY = 'theme-v3';        // same key so saved theme persists
+let LOCK_DURATION_MS = 15 * 60 * 1000; // fallback; overridden by content.json
 
-/* =========================================================
-   RUNTIME STATE
-   ========================================================= */
+/* ----- RUNTIME STATE ----- */
 let CONTENT = null;
-let MUSIC_MAP = {};
-let ytApiLoaded = false;
-let ytReady = false;
-let ytPlayer = null;
-let pendingThemeOnYTReady = null;
-
-let userInteracted = false; // first pointer/scroll/key -> allow audio fade in
-let userMuted = false;      // explicit user action
-let autoMuted = false;      // auto heuristic (visibility hidden)
-let musicBtn = null;        // mute btn
-
-/* quiz globals */
 const QUIZ_DATA = {};
 let quizOverlay = null, qEl, optsWrap, msgEl, cancelBtn, retakeBtn;
 let currentId = null, currentSection = null;
 
 /* =========================================================
-   UTIL
+   THEME UTIL
    ========================================================= */
 function detectSystemTheme() {
   return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -51,23 +25,6 @@ function currentTheme() {
 }
 function saveTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) { } }
 function getSavedTheme() { try { return localStorage.getItem(THEME_KEY); } catch (_) { return null; } }
-function saveUserMute(v) { try { localStorage.setItem(MUSIC_MUTE_KEY, v ? '1' : '0'); } catch (_) { } }
-function getSavedUserMute() { try { return localStorage.getItem(MUSIC_MUTE_KEY) === '1'; } catch (_) { return false; } }
-function saveAutoMuteState(v) { try { localStorage.setItem(MUSIC_AUTO_STATE_KEY, v ? '1' : '0'); } catch (_) { } }
-function getSavedAutoMuteState() { try { return localStorage.getItem(MUSIC_AUTO_STATE_KEY) === '1'; } catch (_) { return false; } }
-
-/* parse YouTube id */
-function parseYouTubeId(val) {
-  if (!val) return null;
-  if (val.startsWith('yt:')) return val.slice(3);
-  if (/^[\w-]{6,15}$/.test(val)) return val;
-  const m = val.match(/[?&]v=([^&]+)/) || val.match(/youtu\.be\/([^?&]+)/);
-  return m ? m[1] : null;
-}
-function themeVideoId(theme) {
-  const v = MUSIC_MAP[theme] || MUSIC_MAP.light;
-  return parseYouTubeId(v);
-}
 
 /* =========================================================
    CONTENT LOAD + BUILD
@@ -78,11 +35,9 @@ async function loadContent() {
     CONTENT = await res.json();
     const min = parseInt(CONTENT?.meta?.lock_duration_minutes, 10);
     if (!isNaN(min) && min > 0) LOCK_DURATION_MS = min * 60 * 1000;
-    MUSIC_MAP = { ...(CONTENT?.meta?.music || {}) };
   } catch (err) {
     console.error('載入 content.json 失敗：', err);
     CONTENT = { sections: [] };
-    MUSIC_MAP = {};
   }
 }
 
@@ -121,6 +76,7 @@ function buildSectionsFromContent() {
     el.appendChild(textDiv);
     el.appendChild(imgDiv);
 
+    // review button (hidden while locked)
     const reviewBtn = document.createElement('button');
     reviewBtn.type = 'button';
     reviewBtn.className = 'quiz-review-btn';
@@ -128,7 +84,7 @@ function buildSectionsFromContent() {
     reviewBtn.textContent = '?';
     reviewBtn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
-      openQuiz(el, true);
+      openQuiz(el, /*review*/true);
     });
     el.appendChild(reviewBtn);
 
@@ -137,11 +93,10 @@ function buildSectionsFromContent() {
 }
 
 /* =========================================================
-   THEME TOGGLE
+   THEME TOGGLE (no music)
    ========================================================= */
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
-  crossfadeToTheme(theme); // smooth music change
 }
 function initThemeToggle() {
   const saved = getSavedTheme();
@@ -168,278 +123,6 @@ function initThemeToggle() {
       applyTheme(sys); saveTheme(sys);
     });
   }
-}
-
-/* =========================================================
-   YOUTUBE PLAYER + MUSIC
-   ========================================================= */
-function ensureYTApi() {
-  if (ytApiLoaded) return;
-  ytApiLoaded = true;
-  const tag = document.createElement('script');
-  tag.src = "https://www.youtube.com/iframe_api";
-  document.head.appendChild(tag);
-
-  const wrap = document.createElement('div');
-  wrap.id = 'yt-music';
-  wrap.style.position = 'fixed';
-  wrap.style.width = '0';
-  wrap.style.height = '0';
-  wrap.style.overflow = 'hidden';
-  wrap.style.opacity = '0';
-  wrap.style.pointerEvents = 'none';
-  document.body.appendChild(wrap);
-}
-
-/* YT global callback */
-window.onYouTubeIframeAPIReady = function () {
-  ytReady = true;
-  createYTPlayer(themeVideoId(currentTheme()));
-  if (pendingThemeOnYTReady) {
-    crossfadeToTheme(pendingThemeOnYTReady);
-    pendingThemeOnYTReady = null;
-  }
-};
-
-function createYTPlayer(videoId) {
-  if (!window.YT || !YT.Player) return;
-  ytPlayer = new YT.Player('yt-music', {
-    height: '0', width: '0',
-    videoId: videoId,
-    playerVars: {
-      autoplay: 1,
-      controls: 0,
-      disablekb: 1,
-      fs: 0,
-      modestbranding: 1,
-      rel: 0,
-      playsinline: 1,
-      loop: 1,
-      playlist: videoId,
-      mute: 1
-    },
-    events: {
-      'onReady': onYTReady,
-      'onStateChange': onYTStateChange,
-      'onError': onYTError
-    }
-  });
-}
-function onYTReady() {
-  logDebug('YT ready');
-  try { ytPlayer.playVideo(); } catch (_) { }
-  userMuted = getSavedUserMute();
-  autoMuted = getSavedAutoMuteState();
-  updateMusicMuteUI();
-  applyEffectiveMuteState();
-}
-function onYTStateChange(e) {
-  logDebug('YT state', e.data);
-  // If ENDED (0) and loop param fails, replay manually
-  if (e.data === YT.PlayerState.ENDED) {
-    try { ytPlayer.playVideo(); } catch (_) { }
-  }
-}
-function onYTError(e) {
-  console.error('YT error', e?.data);
-  // e.data: 2,5,100,101,150 etc.
-  // If error on current video, try fallback to light theme track
-  if (currentTheme() !== 'light') {
-    console.warn('Falling back to light theme track due to YT error.');
-    crossfadeToTheme('light');
-  }
-}
-
-/* ---- Volume helpers ---- */
-function setYTVolume(v) {
-  if (!ytPlayer) return;
-  try { ytPlayer.setVolume(v); } catch (_) { }
-}
-function mutePlayer() { if (!ytPlayer) return; try { ytPlayer.mute(); } catch (_) { } }
-function unmutePlayer() { if (!ytPlayer) return; try { ytPlayer.unMute(); } catch (_) { } }
-
-/* Fade with rAF, Promise */
-function fadeYTVolumeTo(target, duration = 500) {
-  return new Promise(res => {
-    if (!ytPlayer) { res(); return; }
-    let start;
-    let from = 0;
-    try { from = ytPlayer.getVolume(); } catch (_) { }
-    const diff = target - from;
-    const step = (ts) => {
-      if (start == null) start = ts;
-      const p = Math.min(1, (ts - start) / duration);
-      const v = Math.round(from + diff * p);
-      setYTVolume(v);
-      if (p < 1) {
-        requestAnimationFrame(step);
-      } else {
-        if (target > 0) unmutePlayer(); else mutePlayer();
-        res();
-      }
-    };
-    requestAnimationFrame(step);
-  });
-}
-
-/* Wait until PLAYING (with timeout) */
-function waitForYTPlaying(timeout = 3000) {
-  return new Promise(res => {
-    if (!ytPlayer) { res(false); return; }
-    const start = Date.now();
-    const check = () => {
-      try {
-        if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
-          res(true); return;
-        }
-      } catch (_) { }
-      if (Date.now() - start > timeout) { res(false); return; }
-      setTimeout(check, 100);
-    };
-    check();
-  });
-}
-
-/* Crossfade to theme track */
-async function crossfadeToTheme(theme) {
-  const vid = themeVideoId(theme);
-  if (!ytReady || !ytPlayer) {
-    pendingThemeOnYTReady = theme;
-    return;
-  }
-  const curId = ytPlayer.getVideoData()?.video_id;
-  if (curId === vid) {
-    // Already on this video; just ensure volume state correct
-    if (!isEffectivelyMuted() && userInteracted) {
-      fadeYTVolumeTo(DEFAULT_VOL, 300);
-    }
-    return;
-  }
-
-  const wasMuted = isEffectivelyMuted();
-  logDebug('crossfade', { from: curId, to: vid, wasMuted, userInteracted });
-
-  // fade out current if we were audible
-  if (!wasMuted && userInteracted) {
-    await fadeYTVolumeTo(0, CROSSFADE_OUT_MS);
-  } else {
-    mutePlayer(); setYTVolume(0);
-  }
-
-  // load new video
-  ytPlayer.loadVideoById({ videoId: vid, startSeconds: 0, suggestedQuality: 'small' });
-  // refresh loop param (YT quirk: need to call again via playlist)
-  try {
-    // cheat: call cuePlaylist then play
-    ytPlayer.cuePlaylist([vid]);
-    ytPlayer.setLoop?.(true);
-    ytPlayer.playVideo();
-  } catch (_) { }
-
-  // if we should stay muted (user/auto or no interaction yet) just stop here
-  if (wasMuted || !userInteracted) {
-    mutePlayer(); setYTVolume(0);
-    return;
-  }
-
-  // wait for playing; if timeout, still try fade in
-  const ok = await waitForYTPlaying(4000);
-  if (!ok) logDebug('waitForYTPlaying timeout; forcing fade in');
-
-  unmutePlayer();
-  await fadeYTVolumeTo(DEFAULT_VOL, CROSSFADE_IN_MS);
-}
-
-/* effective mute = user OR auto */
-function isEffectivelyMuted() { return userMuted || autoMuted; }
-function applyEffectiveMuteState() {
-  if (isEffectivelyMuted()) {
-    mutePlayer(); setYTVolume(0);
-  } else {
-    unmutePlayer(); setYTVolume(DEFAULT_VOL);
-  }
-  updateMusicMuteUI();
-}
-
-/* manual mute toggle */
-function toggleMusicMute() {
-  userMuted = !userMuted;
-  saveUserMute(userMuted);
-  applyEffectiveMuteState();
-}
-
-/* update mute btn glyph */
-function updateMusicMuteUI() {
-  if (!musicBtn) return;
-  musicBtn.dataset.icon = isEffectivelyMuted() ? '🔇' : '🔈';
-}
-
-/* one-time unmute after first interaction (autoplay unlock) */
-function setupAutoUnmuteAfterInteraction() {
-  const handler = () => {
-    if (userInteracted) return;
-    userInteracted = true;
-    logDebug('first interaction');
-    if (!isEffectivelyMuted()) {
-      unmutePlayer();
-      fadeYTVolumeTo(DEFAULT_VOL, 500);
-    }
-    cleanup();
-  };
-  function cleanup() {
-    window.removeEventListener('pointerdown', handler);
-    window.removeEventListener('keydown', handler);
-    window.removeEventListener('scroll', handler);
-    window.removeEventListener('touchstart', handler);
-  }
-  window.addEventListener('pointerdown', handler, { once: false });
-  window.addEventListener('keydown', handler, { once: false });
-  window.addEventListener('scroll', handler, { once: false, passive: true });
-  window.addEventListener('touchstart', handler, { once: false, passive: true });
-}
-
-/* conservative auto-mute heuristics (no blur; reduces誤觸) */
-function setupAutoMuteHeuristics() {
-  autoMuted = getSavedAutoMuteState();
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      autoMuted = true;
-      saveAutoMuteState(true);
-      applyEffectiveMuteState();
-    } else {
-      if (autoMuted && !userMuted) {
-        autoMuted = false;
-        saveAutoMuteState(false);
-        // fade in only after interaction unlock
-        if (userInteracted) {
-          unmutePlayer();
-          fadeYTVolumeTo(DEFAULT_VOL, CROSSFADE_IN_MS);
-        } else {
-          applyEffectiveMuteState();
-        }
-      }
-    }
-  });
-  window.addEventListener('pagehide', () => {
-    autoMuted = true; saveAutoMuteState(true); applyEffectiveMuteState();
-  });
-}
-
-/* mute button UI */
-function initMusicButton() {
-  musicBtn = document.createElement('button');
-  musicBtn.type = 'button';
-  musicBtn.className = 'music-toggle';
-  musicBtn.dataset.icon = '🔈';
-  musicBtn.addEventListener('click', (e) => {
-    e.preventDefault(); e.stopPropagation();
-    toggleMusicMute();
-  });
-  document.body.appendChild(musicBtn);
-  // restore saved states
-  userMuted = getSavedUserMute();
-  autoMuted = getSavedAutoMuteState();
-  updateMusicMuteUI();
 }
 
 /* =========================================================
@@ -617,6 +300,7 @@ function initQuizLock() {
     }, true);
   });
 
+  // refresh TTL with activity
   ['click', 'scroll', 'keydown', 'touchstart', 'visibilitychange', 'focus'].forEach(ev => {
     window.addEventListener(ev, () => {
       sections.forEach(sec => {
@@ -627,7 +311,7 @@ function initQuizLock() {
 }
 
 /* =========================================================
-   LIGHTBOX
+   LIGHTBOX (respect lock)
    ========================================================= */
 function initLightbox() {
   const overlay = document.createElement('div');
@@ -711,9 +395,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBlocks();
   initLightbox();
   initQuizLock();
-
-  // initMusicButton();
-  // ensureYTApi();
-  // setupAutoUnmuteAfterInteraction();
-  // setupAutoMuteHeuristics();
 });
