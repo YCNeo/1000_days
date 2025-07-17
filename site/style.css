@@ -31,7 +31,6 @@
 /* ==== Dark Theme B: 星空奶油粉 ==== */
 [data-theme="starry"] {
   --bg: #0b0c1c;
-  /* 疊加微星空：小淡粉/白星點 + 深藍漸層 */
   --bg-hero: radial-gradient(
       circle at 20% 30%,
       rgba(255, 158, 222, 0.15) 0 200px,
@@ -126,6 +125,7 @@ main {
   align-items: center;
   padding: 4rem 1rem;
   min-height: 60vh;
+  position: relative; /* for lock overlays */
 }
 .text-left .text {
   order: 1;
@@ -223,7 +223,6 @@ footer {
   padding: 1rem;
   z-index: 2000;
 }
-
 .lightbox-overlay.open {
   display: flex;
   cursor: zoom-out;
@@ -238,7 +237,6 @@ footer {
   border-radius: 8px;
   box-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
 }
-
 .lightbox-close {
   position: absolute;
   top: 1rem;
@@ -250,7 +248,6 @@ footer {
   line-height: 1;
   cursor: pointer;
 }
-
 .lightbox-caption {
   position: absolute;
   bottom: 1rem;
@@ -267,7 +264,7 @@ footer {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 1500; /* Lightbox overlay=2000; keep below */
+  z-index: 1500; /* below lightbox (2000) / quiz (3000) */
   background: var(--accent);
   color: #fff;
   border: none;
@@ -282,8 +279,126 @@ footer {
   transform: scale(0.95);
 }
 
-/* Hide theme toggle when lightbox open */
-body.lightbox-open .theme-toggle {
+/* Hide theme toggle when lightbox or quiz open */
+body.lightbox-open .theme-toggle,
+body.quiz-open .theme-toggle {
   opacity: 0;
   pointer-events: none;
+}
+
+/* === Quiz Lock =================================================== */
+.block.locked {
+  cursor: pointer;
+}
+.block.locked .text,
+.block.locked .image {
+  filter: blur(8px) brightness(0.6) grayscale(0.3);
+  pointer-events: none;
+  user-select: none;
+}
+/* overlay: 半透明暗罩 */
+.block.locked::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+  pointer-events: none;
+}
+/* 鎖頭 icon */
+.block.locked::after {
+  content: "🔒";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1.5);
+  font-size: 3rem;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+/* 已解鎖提示（小圖示） */
+.block.unlocked::after {
+  content: "🔓";
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 1.5rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* === Quiz Modal Overlay ========================================== */
+.quiz-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000; /* > lightbox */
+  background: rgba(0, 0, 0, 0.75);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+.quiz-overlay.open {
+  display: flex;
+}
+
+.quiz-card {
+  width: min(90vw, 480px);
+  max-width: 480px;
+  background: var(--bg-card);
+  color: var(--text);
+  padding: 2rem 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px var(--shadow);
+  text-align: center;
+}
+.quiz-card h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  color: var(--accent);
+}
+.quiz-options {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.quiz-options button {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+.quiz-options button:hover,
+.quiz-options button:focus {
+  transform: scale(1.03);
+  background: var(--accent);
+  color: #fff;
+}
+.quiz-options button.correct {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.quiz-options button.wrong {
+  background: #ff5f5f;
+  border-color: #ff5f5f;
+  color: #fff;
+}
+.quiz-msg {
+  min-height: 1.5em;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+.quiz-cancel {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
 }
